@@ -866,62 +866,87 @@ function previewInvoice(id) {
     const lineTotal=fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0));
     const title=it.title||'';
     const desc=it.desc||'';
-    return `<tr>
-      <td class="col-title" style="font-weight:600;padding-right:12px;">${title||desc}</td>
-      <td class="col-desc" style="color:#666;font-size:0.82rem;padding-right:12px;">${title&&desc?desc:''}</td>
-      <td class="col-qty right">${it.qty}</td>
-      <td class="col-price right">${fmt(it.price)}</td>
-      <td class="col-total right">${lineTotal}</td>
-    </tr>`;
+    return '<tr>'
+      +'<td class="col-title" style="font-weight:600;padding-right:12px;">'+(title||desc)+'</td>'
+      +'<td class="col-desc" style="color:#666;font-size:0.82rem;padding-right:12px;">'+(title&&desc?desc:'')+'</td>'
+      +'<td class="col-qty right">'+it.qty+'</td>'
+      +'<td class="col-price right">'+fmt(it.price)+'</td>'
+      +'<td class="col-total right">'+lineTotal+'</td>'
+      +'</tr>';
   }).join('');
+
   const sub=subtotalOf(inv);
   const disc=parseFloat(inv.discount)||0;
   const discAmt=sub*(disc/100);
   const total=sub-discAmt;
-  document.getElementById('preview-content').innerHTML=`<div class="invoice-preview">
-    <div class="inv-header">
-      <div class="inv-brand-name">
-        ${ATTOMIK_LOGO}
-      </div>
-      <div class="inv-meta">
-        <div class="inv-number">${inv.number}</div>
-        <div class="inv-date">Issued: ${inv.date||'—'}</div>
-        <div class="inv-date">Due: ${inv.due||'—'}</div>
-      </div>
-    </div>
-    <div class="inv-parties">
-      <div><div class="inv-party-label">From</div><div class="inv-party-name">${s.name||'—'}</div><div class="inv-party-detail">${s.email||''}<br>${s.address||''}<br>${s.phone||''}</div></div>
-      <div><div class="inv-party-label">Bill To</div><div class="inv-party-name">${inv.clientName||'—'}</div><div class="inv-party-detail">${inv.clientCompany?inv.clientCompany+'<br>':'}${inv.clientEmail||''}</div></div>
-    </div>
-    <table class="inv-table">
-      <colgroup>
-        <col class="col-title"/><col class="col-desc"/><col class="col-qty"/><col class="col-price"/><col class="col-total"/>
-      </colgroup>
-      <thead><tr>
-        <th class="col-title">Service</th>
-        <th class="col-desc">Description</th>
-        <th class="col-qty right">Qty</th>
-        <th class="col-price right">Price</th>
-        <th class="col-total right">Total</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="inv-total-row" style="flex-direction:column;align-items:flex-end;gap:6px;">
-      ${disc>0?`<div style="display:flex;justify-content:space-between;width:280px;font-size:0.85rem;color:var(--muted);padding:4px 0;"><span>Subtotal</span><span>${fmt(sub)}</span></div>`:'}
-      ${disc>0?`<div style="display:flex;justify-content:space-between;width:280px;font-size:0.85rem;color:var(--muted);padding:4px 0;"><span>Discount (${disc}%)</span><span>-${fmt(discAmt)}</span></div>`:'}
-      <div style="display:flex;justify-content:space-between;width:280px;padding-top:${disc>0?'10px':'0'};${disc>0?'border-top:2px solid #000;':''}">
-        <span class="inv-total-label">Total Due</span>
-        <span class="inv-total-amount">${fmt(total)}</span>
-      </div>
-    </div>
-    ${inv.notes?`<div class="inv-footer" style="margin-top:32px;padding-top:16px;border-top:1px solid #e0e0e0;"><div class="inv-terms">${inv.notes}</div></div>`:''}
-    ${s.paymentInstructions?`<div style="margin-top:28px;padding:20px;background:#f9f9f9;border-radius:8px;border:1px solid #e0e0e0;">
-      <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#666;margin-bottom:10px;">Payment Instructions</div>
-      <div style="font-size:0.82rem;line-height:1.7;color:#333;white-space:pre-wrap;font-family:'DM Mono',monospace;">${s.paymentInstructions}</div>
-    </div>`:''}`
-  </div>`;
+
+  let totalsHtml='';
+  if(disc>0){
+    totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;font-size:0.85rem;color:#666;padding:4px 0;"><span>Subtotal</span><span>'+fmt(sub)+'</span></div>';
+    totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;font-size:0.85rem;color:#666;padding:4px 0;"><span>Discount ('+disc+'%)</span><span>-'+fmt(discAmt)+'</span></div>';
+  }
+  totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;padding-top:'+(disc>0?'10px':'0')+';'+(disc>0?'border-top:2px solid #000;':'')+'">'
+    +'<span class="inv-total-label">Total Due</span>'
+    +'<span class="inv-total-amount">'+fmt(total)+'</span>'
+    +'</div>';
+
+  let footerHtml='';
+  if(inv.notes){
+    footerHtml+='<div class="inv-footer" style="margin-top:32px;padding-top:16px;border-top:1px solid #e0e0e0;">'
+      +'<div class="inv-terms">'+inv.notes+'</div>'
+      +'</div>';
+  }
+  if(s.paymentInstructions){
+    footerHtml+='<div style="margin-top:28px;padding:20px;background:#f9f9f9;border-radius:8px;border:1px solid #e0e0e0;">'
+      +'<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#666;margin-bottom:10px;">Payment Instructions</div>'
+      +'<div style="font-size:0.82rem;line-height:1.7;color:#333;white-space:pre-wrap;font-family:\'DM Mono\',monospace;">'+s.paymentInstructions+'</div>'
+      +'</div>';
+  }
+
+  const clientCompanyLine = inv.clientCompany ? inv.clientCompany+'<br>' : '';
+
+  document.getElementById('preview-content').innerHTML=
+    '<div class="invoice-preview">'
+    +'<div class="inv-header">'
+      +'<div class="inv-brand-name">'+ATTOMIK_LOGO+'</div>'
+      +'<div class="inv-meta">'
+        +'<div class="inv-number">'+inv.number+'</div>'
+        +'<div class="inv-date">Issued: '+(inv.date||'—')+'</div>'
+        +'<div class="inv-date">Due: '+(inv.due||'—')+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="inv-parties">'
+      +'<div>'
+        +'<div class="inv-party-label">From</div>'
+        +'<div class="inv-party-name">'+(s.name||'—')+'</div>'
+        +'<div class="inv-party-detail">'+(s.email||'')+'<br>'+(s.address||'')+'<br>'+(s.phone||'')+'</div>'
+      +'</div>'
+      +'<div>'
+        +'<div class="inv-party-label">Bill To</div>'
+        +'<div class="inv-party-name">'+(inv.clientName||'—')+'</div>'
+        +'<div class="inv-party-detail">'+clientCompanyLine+(inv.clientEmail||'')+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<table class="inv-table">'
+      +'<colgroup>'
+        +'<col class="col-title"/><col class="col-desc"/><col class="col-qty"/><col class="col-price"/><col class="col-total"/>'
+      +'</colgroup>'
+      +'<thead><tr>'
+        +'<th class="col-title">Service</th>'
+        +'<th class="col-desc">Description</th>'
+        +'<th class="col-qty right">Qty</th>'
+        +'<th class="col-price right">Price</th>'
+        +'<th class="col-total right">Total</th>'
+      +'</tr></thead>'
+      +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+    +'<div class="inv-total-row" style="flex-direction:column;align-items:flex-end;gap:6px;">'+totalsHtml+'</div>'
+    +footerHtml
+    +'</div>';
+
   openModal('preview-modal');
 }
+
 
 // ── CC TAG INPUT ──────────────────────────────────────────────
 function handleCcKey(e) {
