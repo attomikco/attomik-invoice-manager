@@ -1047,8 +1047,9 @@ function previewInvoice(id){
       +'<div style="font-size:.85rem;color:#333;line-height:1.6;white-space:pre-wrap;font-family:Barlow,sans-serif;">'+piLines+'</div>'
       +'</div>';
   }
-  // 2. Payment Terms AFTER
-  var termsText=inv.notes||(s.terms||'');
+  // 2. Payment Terms AFTER — only from inv.notes or s.terms (NOT s.note which is footer message)
+  var termsText=inv.notes||'';
+  if(!termsText&&s.terms&&s.terms!==s.note) termsText=s.terms;
   if(termsText){
     footerHtml+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Terms</div>'
