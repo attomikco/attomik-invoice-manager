@@ -950,12 +950,12 @@ function printInvoice(){
     /* totals */
     '.inv-total-amount{font-family:Barlow,sans-serif;font-weight:800;font-size:1.3rem;}',
     /* payment terms */
-    '.inv-terms{font-size:.78rem;color:#333;line-height:1.6;white-space:pre-wrap;}',
+    '.inv-terms{font-size:.85rem;color:#333;line-height:1.8;white-space:pre-wrap;font-family:Barlow,sans-serif;}',
     /* ALL inline-styled divs — force display */
     'div[style]{display:block;}',
     /* payment instructions pre-wrap box */
     'div[style*="background:#f9f9f9"]{background:#f9f9f9!important;border:1px solid #e0e0e0;border-radius:6px;padding:16px;margin-top:20px;page-break-inside:avoid;}',
-    'div[style*="white-space:pre-wrap"]{white-space:pre-wrap;font-family:"DM Mono",monospace;font-size:.74rem;line-height:1.7;color:#333;}',
+    'div[style*="white-space:pre-wrap"]{white-space:pre-wrap;font-family:Barlow,sans-serif;font-size:.82rem;line-height:1.8;color:#333;}',
     /* payment terms block */
     'div[style*="padding-top:16px"]{border-top:1px solid #e0e0e0;padding-top:14px;margin-top:20px;}',
     /* totals flex rows */
@@ -1001,7 +1001,7 @@ function previewInvoice(id){
     var serviceDesc = isLegacyDesc ? rawTitle : (rawDesc === rawTitle ? '' : rawDesc);
     var titleCell = serviceTitle
       ? '<div style="font-weight:600;">'+serviceTitle+'</div>'
-        +(serviceDesc?'<div style="font-size:.78rem;color:#888;margin-top:3px;line-height:1.5;">'+serviceDesc+'</div>':'')
+        +(serviceDesc?'<div style="font-size:.82rem;color:#666;margin-top:4px;line-height:1.6;">'+serviceDesc+'</div>':'')
       : '<div style="color:#333;">'+serviceDesc+'</div>';
     return '<tr>'
       +'<td class="col-title" style="padding-right:16px;vertical-align:top;padding-top:12px;padding-bottom:12px;">'+titleCell+'</td>'
