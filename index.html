@@ -1190,12 +1190,20 @@ function renderClientsTable(){
   if(!clients.length){empty.style.display='';return;}
   empty.style.display='none';
   clients.forEach(function(c){
-    var emailList=Array.isArray(c.emails)?c.emails:(c.email?[c.email]:[]);
+    // Parse emails — may come as JSON string from Sheets
+    var emailList=Array.isArray(c.emails)?c.emails:[];
+    if(!emailList.length){
+      try{ if(typeof c.emails==='string'&&c.emails[0]==='[') emailList=JSON.parse(c.emails); }catch(e){}
+    }
+    if(!emailList.length&&c.email) emailList=[c.email];
+    // Sanitize company — if it looks like JSON it's a mapping error from Sheets
+    var company=(c.company||'');
+    if(company[0]==='['||company[0]==='"') company='';
     var emailTags=emailList.map(function(e){return '<span style="display:inline-block;background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:2px 8px;margin:1px;font-size:.75rem;">'+e+'</span>';}).join('');
     var tr=document.createElement('tr');
     tr.innerHTML='<td style="font-weight:600">'+c.name+'</td>'
       +'<td>'+emailTags+'</td>'
-      +'<td>'+(c.company||'—')+'</td>'
+      +'<td>'+(company||'—')+'</td>'
       +'<td>'+invoices.filter(function(i){return i.clientEmail===c.email;}).length+'</td>'
       +'<td style="white-space:nowrap">'
         +'<button class="btn btn-ghost btn-sm" onclick="openClientModal(\''+c.id+'\')">Edit</button>'
