@@ -372,8 +372,8 @@ textarea{resize:vertical;min-height:80px;}
         <div style="display:flex;justify-content:space-between;gap:40px;align-items:baseline;padding-top:8px;border-top:1px solid var(--border);"><span class="total-label">Total</span><span class="total-value" id="inv-grand-total">$0.00</span></div>
       </div>
     </div>
-    <div class="section-title">Notes</div>
-    <div class="form-group"><textarea id="inv-notes" placeholder="Additional notes…"></textarea></div>
+    <div class="section-title">Notes (optional)</div>
+    <div class="form-group"><textarea id="inv-notes" placeholder="Any additional notes to include on the invoice…"></textarea></div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('invoice-modal')">Cancel</button>
       <button class="btn btn-secondary" onclick="saveInvoice('draft')">Save Draft</button>
@@ -862,7 +862,7 @@ function prefillClient(){
   document.getElementById('inv-client-name').value=c.name;
   document.getElementById('inv-client-email').value=emails[0]||'';
   document.getElementById('inv-client-company').value=c.company||'';
-  if(c.paymentTerms) document.getElementById('inv-notes').value=c.paymentTerms;
+  // payment terms handled in preview — not stored in invoice notes
 }
 function addLineItem(item){
   item=item||{};
@@ -1047,13 +1047,20 @@ function previewInvoice(id){
       +'<div style="font-size:.85rem;color:#333;line-height:1.6;white-space:pre-wrap;font-family:Barlow,sans-serif;">'+piLines+'</div>'
       +'</div>';
   }
-  // 2. Payment Terms AFTER — only from inv.notes or s.terms (NOT s.note which is footer message)
-  var termsText=inv.notes||'';
-  if(!termsText&&s.terms&&s.terms!==s.note) termsText=s.terms;
+  // 2. Payment Terms — from client's paymentTerms or default settings.terms
+  var clientForTerms=clients.find(function(c){return c.email===inv.clientEmail;});
+  var termsText=(clientForTerms&&clientForTerms.paymentTerms)||s.terms||'';
   if(termsText){
     footerHtml+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Terms</div>'
       +'<div style="font-size:.85rem;color:#333;line-height:1.6;font-family:Barlow,sans-serif;">'+termsText+'</div>'
+      +'</div>';
+  }
+  // 3. Notes — separate section only if there are actual notes on the invoice
+  if(inv.notes){
+    footerHtml+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Notes</div>'
+      +'<div style="font-size:.85rem;color:#333;line-height:1.6;font-family:Barlow,sans-serif;">'+inv.notes+'</div>'
       +'</div>';
   }
   var rawCompany=inv.clientCompany||'';
