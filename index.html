@@ -528,8 +528,14 @@ async function loadFromSheets(){
     settings=res[1].settings||{};
     // Services come from their own Sheets tab now
     var sheetServices=res[0].services||[];
-    services=sheetServices.length ? sheetServices : safeParseJSON(settings._services,[]);
-    if(!services.length) services=DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
+    if(sheetServices.length){
+      services=sheetServices;
+    } else {
+      // Nothing in Sheets yet — load from localStorage or defaults
+      var storedServices=JSON.parse(localStorage.getItem('inv_services')||'[]');
+      services=storedServices.length ? storedServices : DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
+    }
+    localStorage.setItem('inv_services',JSON.stringify(services));
     isConnected=true;
     setSync('connected','Connected');
     var si=document.getElementById('script-url-input');
@@ -548,14 +554,15 @@ function loadLocalData(){
   invoices=JSON.parse(localStorage.getItem('inv_invoices')||'[]');
   clients=JSON.parse(localStorage.getItem('inv_clients')||'[]');
   settings=JSON.parse(localStorage.getItem('inv_settings')||'{}');
-  services=safeParseJSON(settings._services,[]);
-  if(!services.length) services=DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
+  // Load services from dedicated localStorage key, fall back to defaults
+  var storedServices=JSON.parse(localStorage.getItem('inv_services')||'[]');
+  services=storedServices.length ? storedServices : DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
 }
 function saveLocal(){
-  settings._services=JSON.stringify(services);
   localStorage.setItem('inv_invoices',JSON.stringify(invoices));
   localStorage.setItem('inv_clients',JSON.stringify(clients));
   localStorage.setItem('inv_settings',JSON.stringify(settings));
+  localStorage.setItem('inv_services',JSON.stringify(services));
 }
 function renderAll(){renderDashboard();renderInvoicesTable();renderClientsTable();renderServicesTable();loadSettingsForm();}
 
@@ -1158,6 +1165,9 @@ async function saveSettings(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────
+// Clear legacy _services from settings if present
+var legacySettings=JSON.parse(localStorage.getItem('inv_settings')||'{}');
+if(legacySettings._services){delete legacySettings._services;localStorage.setItem('inv_settings',JSON.stringify(legacySettings));}
 if(scriptUrl){loadFromSheets();}
 else{loadLocal();}
 </script>
