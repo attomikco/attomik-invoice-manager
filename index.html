@@ -522,8 +522,15 @@ async function loadFromSheets(){
   showLoading('Loading from Google Sheets…');
   try{
     var res=await Promise.all([api('getAll'),api('getSettings')]);
-    invoices=res[0].invoices||[];
-    clients=res[0].clients||[];
+    // Only replace local data if Sheets returns something valid
+    var sheetInvoices=res[0].invoices||[];
+    var sheetClients=res[0].clients||[];
+    // Merge: use Sheets data if it has content, otherwise keep local
+    if(sheetInvoices.length) invoices=sheetInvoices;
+    if(sheetClients.length) clients=sheetClients;
+    // If Sheets returns fewer clients than local, keep local (protects against wipe)
+    var localClients=JSON.parse(localStorage.getItem('inv_clients')||'[]');
+    if(localClients.length>sheetClients.length) clients=localClients;
     settings=res[1].settings||{};
     // Services come from their own Sheets tab now
     var sheetServices=res[0].services||[];
@@ -1012,24 +1019,22 @@ function previewInvoice(id){
   }
   totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;padding-top:'+(disc>0?'10px':'0')+';'+(disc>0?'border-top:2px solid #000;':'')+'"><span style="font-size:.875rem;color:#666;">Total Due</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
   var footerHtml='';
-  var termsText=inv.notes||(s.terms||'');
-  if(termsText){
-    footerHtml='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0e0;">'
-      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Terms</div>'
-      +'<div style="font-size:.85rem;color:#333;line-height:1.6;">'+termsText+'</div>'
-      +'</div>';
-  }
-  // Get payment instructions — from settings object or directly from the textarea (fallback)
+  // 1. Payment Instructions FIRST
   var piText=s.paymentInstructions||'';
-  if(!piText){
-    var piEl=document.getElementById('s-payment-instructions');
-    if(piEl) piText=piEl.value||'';
-  }
+  if(!piText){var piEl=document.getElementById('s-payment-instructions');if(piEl) piText=piEl.value||'';}
   if(piText){
     var piLines=piText.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    footerHtml+='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0e0;">'
-      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Instructions</div>'
-      +'<div style="font-size:.85rem;line-height:1.7;color:#333;white-space:pre-wrap;">'+piLines+'</div>'
+    footerHtml='<div style="margin-top:24px;padding:20px;background:#f9f9f9;border-radius:8px;border:1px solid #e0e0e0;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:10px;">Payment Instructions</div>'
+      +'<div style="font-size:.85rem;line-height:1.8;color:#333;white-space:pre-wrap;font-family:Barlow,sans-serif;">'+piLines+'</div>'
+      +'</div>';
+  }
+  // 2. Payment Terms AFTER
+  var termsText=inv.notes||(s.terms||'');
+  if(termsText){
+    footerHtml+='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e0e0e0;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Terms</div>'
+      +'<div style="font-size:.85rem;color:#333;line-height:1.6;font-family:Barlow,sans-serif;">'+termsText+'</div>'
       +'</div>';
   }
   var companyLine=inv.clientCompany?inv.clientCompany+'<br>':'';
