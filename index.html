@@ -1018,14 +1018,22 @@ function openNewInvoice(){
   document.getElementById('line-items-container').innerHTML='';
   addLineItem();updateTotal();populateClientDropdown();openModal('invoice-modal');
 }
+function toDateInput(val){
+  // Convert any date value to YYYY-MM-DD for <input type="date">
+  if(!val) return '';
+  var d=parseLocalDate(val);
+  if(!d||isNaN(d)) return '';
+  return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');
+}
+
 function editInvoice(id){
   var inv=invoices.find(function(i){return i.id===id;});
   if(!inv) return;
   editingInvoiceId=id;
   document.getElementById('invoice-modal-title').textContent='Edit Invoice';
   document.getElementById('inv-number').value=inv.number;
-  document.getElementById('inv-date').value=inv.date;
-  document.getElementById('inv-due').value=inv.due;
+  document.getElementById('inv-date').value=toDateInput(inv.date);
+  document.getElementById('inv-due').value=toDateInput(inv.due);
   document.getElementById('inv-status').value=inv.status;
   document.getElementById('inv-discount').value=inv.discount||0;
   document.getElementById('inv-client-name').value=inv.clientName||'';
@@ -1034,6 +1042,15 @@ function editInvoice(id){
   document.getElementById('inv-notes').value=inv.notes||'';
   document.getElementById('line-items-container').innerHTML='';
   (inv.items||[]).forEach(function(it){addLineItem(it);});
+  // Pre-select matching client in dropdown
+  populateClientDropdown();
+  var csel=document.getElementById('inv-client-select');
+  var matchClient=clients.find(function(c){return c.email===inv.clientEmail;});
+  if(matchClient&&csel){
+    for(var ci=0;ci<csel.options.length;ci++){
+      if(csel.options[ci].value===matchClient.id){csel.selectedIndex=ci;break;}
+    }
+  }
   updateTotal();populateClientDropdown();openModal('invoice-modal');
 }
 function duplicateInvoice(id){
@@ -1100,6 +1117,17 @@ function addLineItem(item){
     if(th) th.value=svc.desc||'';
     updateTotal();
   };
+  // Pre-select matching service in dropdown if item has a title
+  if(item&&item.title){
+    var opts=svcSel.options;
+    for(var oi=0;oi<opts.length;oi++){
+      if(!opts[oi].value) continue;
+      try{
+        var sv=JSON.parse(opts[oi].value);
+        if(sv.name===item.title){svcSel.selectedIndex=oi;break;}
+      }catch(e){}
+    }
+  }
   div.appendChild(svcSel);
   var rest=document.createElement('div');
   rest.style.cssText='display:contents';
