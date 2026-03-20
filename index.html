@@ -498,8 +498,23 @@ function closeSidebar(){
 async function api(action, payload){
   payload=payload||{};
   if(!scriptUrl) throw new Error('No script URL');
-  var url=scriptUrl+'?action='+encodeURIComponent(action)+'&payload='+encodeURIComponent(JSON.stringify(payload));
-  var res=await fetch(url,{redirect:'follow'});
+  // Use GET for reads, POST for writes to avoid URL length limits
+  var readActions=['getAll','getSettings'];
+  var isRead=readActions.indexOf(action)!==-1;
+  var res;
+  if(isRead){
+    var url=scriptUrl+'?action='+encodeURIComponent(action)+'&payload='+encodeURIComponent(JSON.stringify(payload));
+    res=await fetch(url,{redirect:'follow'});
+  } else {
+    // POST with JSON body — Apps Script reads from postData
+    var url=scriptUrl+'?action='+encodeURIComponent(action);
+    res=await fetch(url,{
+      method:'POST',
+      redirect:'follow',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'payload='+encodeURIComponent(JSON.stringify(payload))
+    });
+  }
   if(!res.ok) throw new Error('HTTP '+res.status);
   var text=await res.text();
   var json=text.slice(text.indexOf('{'),text.lastIndexOf('}')+1);
