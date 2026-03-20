@@ -748,7 +748,7 @@ function saveServiceFromModal(){
   saveServicesLocal();renderServicesTable();closeModal('service-modal');
   toast(editingServiceId?'Service updated ✓':'Service added ✓','success');
   // Also push individual service to Sheets
-  if(isConnected){
+  if(scriptUrl){
     var svcToSave=services.find(function(s){return s.id===(editingServiceId||services[services.length-1].id);});
     if(svcToSave) api('saveService',{service:svcToSave}).catch(function(){});
   }
@@ -757,12 +757,12 @@ function removeService(id){
   if(!confirm('Delete this service?')) return;
   services=services.filter(function(s){return s.id!==id;});
   saveServicesLocal();renderServicesTable();toast('Service deleted');
-  if(isConnected) api('deleteService',{id:id}).catch(function(){});
+  if(scriptUrl) api('deleteService',{id:id}).catch(function(){});
 }
 async function saveServicesLocal(){
   settings._services=JSON.stringify(services);
   saveLocal();
-  if(isConnected){try{await api('saveSettings',{settings:settings});}catch(e){}}
+  if(scriptUrl){try{await api('saveSettings',{settings:settings});}catch(e){}}
 }
 
 async function syncServicesToSheets(){
@@ -946,7 +946,7 @@ async function saveInvoice(mode){
     invoices.push(inv);
   }
   saveLocal();closeModal('invoice-modal');renderDashboard();renderInvoicesTable();
-  if(isConnected){
+  if(scriptUrl){
     setSync('syncing','Saving…');
     try{await api('saveInvoice',{invoice:inv});setSync('connected','Connected');toast('Saved to Sheets ✓','success');}
     catch(e){setSync('error','Sync error');toast('Saved locally','error');}
@@ -1174,7 +1174,7 @@ async function sendViaGmail(){
   window.open(url,'_blank');
   if(previewingInvoice&&previewingInvoice.status==='draft'){
     var inv=invoices.find(function(i){return i.id===previewingInvoice.id;});
-    if(inv){inv.status='sent';saveLocal();if(isConnected){try{await api('saveInvoice',{invoice:inv});}catch(e){}}renderDashboard();renderInvoicesTable();}
+    if(inv){inv.status='sent';saveLocal();if(scriptUrl){try{await api('saveInvoice',{invoice:inv});}catch(e){}}renderDashboard();renderInvoicesTable();}
   }
   closeModal('gmail-modal');toast('Gmail opened ✓','success');
 }
@@ -1315,7 +1315,7 @@ function loadSettingsForm(){
     if(el) el.value=DEFAULT_TERMS;
     settings.terms=DEFAULT_TERMS;
     saveLocal();
-    if(isConnected) api('saveSettings',{settings:settings}).catch(function(){});
+    if(scriptUrl) api('saveSettings',{settings:settings}).catch(function(){});
   }
   var defaultPI='Please pay this invoice via bank transfer using the information below.\n\nBeneficiary: Attomik LLC\nBank Name: Bank of America\nAccount Number: 483095645686\nRouting Number:\n  Electronic (Direct Deposit / Auto Payments): 021000322\n  Wire Transfer: 026009593';
   var pi=document.getElementById('s-payment-instructions');
@@ -1338,7 +1338,7 @@ async function saveSettings(){
     paymentInstructions:document.getElementById('s-payment-instructions').value
   });
   saveLocal();
-  if(isConnected){try{await api('saveSettings',{settings:settings});toast('Settings saved to Sheets ✓','success');}catch(e){toast('Saved locally','error');}}
+  if(scriptUrl){try{await api('saveSettings',{settings:settings});toast('Settings saved to Sheets ✓','success');}catch(e){toast('Saved locally','error');}}
   else toast('Settings saved ✓','success');
 }
 
