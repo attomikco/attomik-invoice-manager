@@ -133,11 +133,11 @@ textarea{resize:vertical;min-height:80px;}
 .inv-party-name{font-weight:700;font-size:1rem;margin-bottom:2px;}
 .inv-party-detail{font-size:.85rem;color:var(--muted);line-height:1.5;}
 .inv-table{width:100%;border-collapse:collapse;margin-bottom:24px;table-layout:fixed;}
-.inv-table .col-title{width:22%;}
-.inv-table .col-desc{width:38%;}
+.inv-table .col-title{width:52%;}
+.inv-table .col-desc{display:none;}
 .inv-table .col-qty{width:8%;text-align:right;}
-.inv-table .col-price{width:16%;text-align:right;}
-.inv-table .col-total{width:16%;text-align:right;}
+.inv-table .col-price{width:20%;text-align:right;}
+.inv-table .col-total{width:20%;text-align:right;}
 .inv-table th{padding:10px 0;text-align:left;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:2px solid #000;}
 .inv-table th.right,.inv-table td.right{text-align:right;}
 .inv-table td{padding:12px 0;font-size:.875rem;border-bottom:1px solid var(--border);vertical-align:top;}
@@ -355,7 +355,7 @@ textarea{resize:vertical;min-height:80px;}
       <div class="form-group"><label>Company</label><input type="text" id="inv-client-company" placeholder="Company Inc."/></div>
     </div>
     <div class="section-title">Line Items</div>
-    <div class="line-items-header"><span>Service</span><span>Title</span><span>Qty</span><span>Price</span><span>Total</span><span></span></div>
+    <div class="line-items-header"><span>Service</span><span>Title / Description</span><span>Qty</span><span>Price</span><span>Total</span><span></span></div>
     <div id="line-items-container"></div>
     <button class="btn btn-secondary btn-sm" onclick="addLineItem()" style="margin-top:4px">+ Add Item</button>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;gap:12px;align-items:center;">
@@ -398,9 +398,9 @@ textarea{resize:vertical;min-height:80px;}
       </div>
       <div style="font-size:.78rem;color:var(--muted);margin-top:4px;">First email = primary To address on invoices.</div>
     </div>
-    <div class="form-group" style="margin-bottom:20px">
-      <label>Payment Terms (overrides default)</label>
-      <textarea id="c-payment-terms" placeholder="e.g. Net 15, 50% upfront…" style="min-height:70px;"></textarea>
+    <div class="form-group" style="margin-bottom:20px;margin-top:4px;">
+      <label style="display:block;margin-bottom:6px;">Payment Terms (overrides default)</label>
+      <textarea id="c-payment-terms" placeholder="e.g. Net 15, 50% upfront…" style="min-height:70px;width:100%;"></textarea>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('client-modal')">Cancel</button>
@@ -941,7 +941,7 @@ function printInvoice(){
     '.inv-party-detail{font-size:.76rem;color:#666;line-height:1.6;}',
     /* table */
     '.inv-table{width:100%;border-collapse:collapse;margin-bottom:8px;table-layout:fixed;}',
-    '.col-title{width:20%;}.col-desc{width:36%;}.col-qty{width:8%;text-align:right;}.col-price{width:18%;text-align:right;}.col-total{width:18%;text-align:right;}',
+    '.col-title{width:52%;}.col-desc{display:none;}.col-qty{width:8%;text-align:right;}.col-price{width:20%;text-align:right;}.col-total{width:20%;text-align:right;}',
     '.inv-table th{padding:7px 0;text-align:left;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#666;border-bottom:2px solid #000;}',
     '.inv-table th.right,.inv-table td.right{text-align:right;}',
     '.inv-table td{padding:9px 0;font-size:.78rem;border-bottom:1px solid #e0e0e0;vertical-align:top;}',
@@ -969,7 +969,16 @@ function previewInvoice(id){
   var inv=invoices.find(function(i){return i.id===id;});
   if(!inv) return;
   previewingInvoice=inv;
-  var s=settings;
+  // Always read latest values from settings + any unsaved textarea values
+  var s=Object.assign({},settings);
+  var piEl=document.getElementById('s-payment-instructions');
+  if(piEl&&piEl.value&&!s.paymentInstructions) s.paymentInstructions=piEl.value;
+  var nameEl=document.getElementById('s-name');
+  if(nameEl&&nameEl.value&&!s.name) s.name=nameEl.value;
+  var emailEl=document.getElementById('s-email');
+  if(emailEl&&emailEl.value&&!s.email) s.email=emailEl.value;
+  var addrEl=document.getElementById('s-address');
+  if(addrEl&&addrEl.value&&!s.address) s.address=addrEl.value;
   var rows=(inv.items||[]).map(function(it){
     var lt=fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0));
     var rawTitle=(it.title||'').trim();
@@ -978,9 +987,13 @@ function previewInvoice(id){
     var isLegacyDesc = rawTitle.length > 50 || rawTitle.indexOf(' ') > -1 && rawTitle.split(' ').length > 5;
     var serviceTitle = isLegacyDesc ? '' : rawTitle;
     var serviceDesc = isLegacyDesc ? rawTitle : (rawDesc === rawTitle ? '' : rawDesc);
+    var titleCell = serviceTitle
+      ? '<div style="font-weight:600;">'+serviceTitle+'</div>'
+        +(serviceDesc?'<div style="font-size:.78rem;color:#888;margin-top:3px;line-height:1.5;">'+serviceDesc+'</div>':'')
+      : '<div style="color:#333;">'+serviceDesc+'</div>';
     return '<tr>'
-      +'<td class="col-title" style="font-weight:600;padding-right:12px;">'+serviceTitle+'</td>'
-      +'<td class="col-desc" style="color:#666;font-size:.82rem;padding-right:12px;line-height:1.5;">'+serviceDesc+'</td>'
+      +'<td class="col-title" style="padding-right:16px;vertical-align:top;padding-top:12px;padding-bottom:12px;">'+titleCell+'</td>'
+      +'<td class="col-desc"></td>'
       +'<td class="col-qty right">'+it.qty+'</td>'
       +'<td class="col-price right">'+fmt(it.price)+'</td>'
       +'<td class="col-total right">'+lt+'</td>'
@@ -1003,8 +1016,14 @@ function previewInvoice(id){
       +'<div class="inv-terms" style="font-size:.85rem;color:#333;">'+inv.notes+'</div>'
       +'</div>';
   }
-  if(s.paymentInstructions){
-    var piLines=s.paymentInstructions.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Get payment instructions — from settings object or directly from the textarea (fallback)
+  var piText=s.paymentInstructions||'';
+  if(!piText){
+    var piEl=document.getElementById('s-payment-instructions');
+    if(piEl) piText=piEl.value||'';
+  }
+  if(piText){
+    var piLines=piText.replace(/</g,'&lt;').replace(/>/g,'&gt;');
     footerHtml+='<div style="margin-top:28px;padding:20px;background:#f9f9f9;border-radius:8px;border:1px solid #e0e0e0;">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:10px;">Payment Instructions</div>'
       +'<div style="font-size:.82rem;line-height:1.7;color:#333;white-space:pre-wrap;font-family:monospace;">'+piLines+'</div>'
