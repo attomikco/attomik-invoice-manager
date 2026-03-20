@@ -589,8 +589,17 @@ function subtotalOf(inv){return (inv.items||[]).reduce(function(s,it){return s+(
 function totalOf(inv){var sub=subtotalOf(inv);var disc=parseFloat(inv.discount)||0;return sub-(sub*(disc/100));}
 function fmtDate(str){
   if(!str) return '—';
-  var d=new Date(str);
-  if(isNaN(d)) return str;
+  // Handle Google Sheets Date objects, ISO strings, and plain date strings
+  var d;
+  if(str instanceof Date) d=str;
+  else {
+    var s=String(str).trim();
+    if(!s||s==='—'||s==='undefined'||s==='null') return '—';
+    // Handle plain YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) s=s+'T12:00:00';
+    d=new Date(s);
+  }
+  if(isNaN(d.getTime())) return String(str)||'—';
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 function genNumber(){
@@ -987,7 +996,6 @@ function previewInvoice(id){
       : '<div style="color:#333;">'+serviceDesc+'</div>';
     return '<tr>'
       +'<td class="col-title" style="padding-right:16px;vertical-align:top;padding-top:12px;padding-bottom:12px;">'+titleCell+'</td>'
-      +'<td class="col-desc"></td>'
       +'<td class="col-qty right">'+it.qty+'</td>'
       +'<td class="col-price right">'+fmt(it.price)+'</td>'
       +'<td class="col-total right">'+lt+'</td>'
@@ -1056,7 +1064,7 @@ function previewInvoice(id){
       +'</div>'
     +'</div>'
     +'<table class="inv-table">'
-      +'<colgroup><col class="col-title"/><col class="col-desc"/><col class="col-qty"/><col class="col-price"/><col class="col-total"/></colgroup>'
+      +'<colgroup><col class="col-title"/><col class="col-qty"/><col class="col-price"/><col class="col-total"/></colgroup>'
       +'<thead><tr>'
         +'<th class="col-title">Service</th>'
         +'<th class="col-desc">Description</th>'
