@@ -1277,10 +1277,9 @@ function previewInvoice(id){
     var lt=fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0));
     var rawTitle=(it.title||'').trim();
     var rawDesc=(it.desc||'').trim();
-    // Detect legacy data: if title is long sentence it's actually a description
-    var isLegacyDesc = rawTitle.length > 50 || rawTitle.indexOf(' ') > -1 && rawTitle.split(' ').length > 5;
-    var serviceTitle = isLegacyDesc ? '' : rawTitle;
-    var serviceDesc = isLegacyDesc ? rawTitle : (rawDesc === rawTitle ? '' : rawDesc);
+    // Use title as-is, desc separately (only hide desc if same as title)
+    var serviceTitle = rawTitle;
+    var serviceDesc = (rawDesc && rawDesc !== rawTitle) ? rawDesc : '';
     var titleCell = serviceTitle
       ? '<div style="font-weight:600;">'+serviceTitle+'</div>'
         +(serviceDesc?'<div style="font-size:.82rem;color:#666;margin-top:4px;line-height:1.6;">'+serviceDesc+'</div>':'')
