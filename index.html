@@ -690,7 +690,7 @@ async function changeStatus(id,status){
   inv.status=status;
   saveLocal();
   renderDashboard();renderInvoicesTable();
-  if(isConnected){try{await api('saveInvoice',{invoice:inv});}catch(e){}}
+  if(scriptUrl){try{await api('saveInvoice',{invoice:inv});isConnected=true;}catch(e){}}
   toast('Status → '+status,'success');
 }
 
@@ -842,7 +842,7 @@ async function deleteInvoice(id){
   if(!confirm('Delete this invoice?')) return;
   invoices=invoices.filter(function(i){return i.id!==id;});
   saveLocal();
-  if(isConnected){try{await api('deleteInvoice',{id:id});}catch(e){}}
+  if(scriptUrl){try{await api('deleteInvoice',{id:id});}catch(e){}}
   renderDashboard();renderInvoicesTable();toast('Invoice deleted');
 }
 function populateClientDropdown(){
@@ -1244,14 +1244,14 @@ async function saveClient(){
     clients.push(c);
   }
   saveLocal();closeModal('client-modal');renderClientsTable();
-  if(isConnected){try{await api('saveClient',{client:c});toast('Client saved to Sheets ✓','success');}catch(e){toast('Saved locally','error');}}
+  if(scriptUrl){try{await api('saveClient',{client:c});isConnected=true;toast('Client saved to Sheets ✓','success');}catch(e){toast('Saved locally','error');}}
   else toast('Client saved ✓','success');
 }
 async function deleteClient(id){
   if(!confirm('Delete this client?')) return;
   clients=clients.filter(function(c){return c.id!==id;});
   saveLocal();
-  if(isConnected){try{await api('deleteClient',{id:id});}catch(e){}}
+  if(scriptUrl){try{await api('deleteClient',{id:id});}catch(e){}}
   renderClientsTable();toast('Client removed');
 }
 function renderClientsTable(){
