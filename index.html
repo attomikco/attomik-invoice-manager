@@ -849,7 +849,8 @@ async function deleteInvoice(id){
 function populateClientDropdown(){
   var sel=document.getElementById('inv-client-select');
   sel.innerHTML='<option value="">— enter manually —</option>';
-  clients.forEach(function(c){
+  var sortedClients=[].concat(clients).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+  sortedClients.forEach(function(c){
     var o=document.createElement('option');
     o.value=c.id;
     o.textContent=c.name+(c.company?' ('+c.company+')':'');
@@ -1222,7 +1223,10 @@ function openClientModal(id){
     document.getElementById('c-payment-terms').value=_paymentTerms;
     clientEmails=_emails;
   } else {
-    ['c-name','c-company','c-address','c-payment-terms'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('c-name').value='';
+    document.getElementById('c-company').value='';
+    document.getElementById('c-address').value='';
+    document.getElementById('c-payment-terms').value=DEFAULT_TERMS||'Thank you for your business! Payment is due within 15 days of the invoice date. Please make payments via the methods provided in the invoice. Late payments may be subject to a 5% late fee per month.';
   }
   renderClientEmailTags();
   openModal('client-modal');
