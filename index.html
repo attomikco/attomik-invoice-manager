@@ -522,15 +522,29 @@ async function loadFromSheets(){
   showLoading('Loading from Google Sheets…');
   try{
     var res=await Promise.all([api('getAll'),api('getSettings')]);
-    // Only replace local data if Sheets returns something valid
     var sheetInvoices=res[0].invoices||[];
     var sheetClients=res[0].clients||[];
-    // Merge: use Sheets data if it has content, otherwise keep local
-    if(sheetInvoices.length) invoices=sheetInvoices;
-    if(sheetClients.length) clients=sheetClients;
-    // If Sheets returns fewer clients than local, keep local (protects against wipe)
+    var localInvoices=JSON.parse(localStorage.getItem('inv_invoices')||'[]');
     var localClients=JSON.parse(localStorage.getItem('inv_clients')||'[]');
-    if(localClients.length>sheetClients.length) clients=localClients;
+    // INVOICES: use whichever has more data
+    invoices = sheetInvoices.length >= localInvoices.length ? sheetInvoices : localInvoices;
+    // CLIENTS: ALWAYS prefer local — local is manually entered and correct
+    // Only use Sheets clients if local is completely empty
+    if(localClients.length > 0){
+      clients = localClients;
+    } else if(sheetClients.length > 0){
+      // Sanitize sheet clients before using
+      clients = sheetClients.map(function(c){
+        var emails=Array.isArray(c.emails)?c.emails:[];
+        if(!emails.length){try{if(typeof c.emails==='string'&&c.emails[0]==='[')emails=JSON.parse(c.emails);}catch(e){}}
+        var company=c.company||'';
+        var address=c.address||'';
+        if(company[0]==='['||company[0]==='"'){company='';address='';}
+        if(address[0]==='['||address.indexOf('@')!==-1&&address.indexOf(' ')===-1){address='';}
+        if(!emails.length&&c.email)emails=[c.email];
+        return Object.assign({},c,{emails:emails,company:company,address:address});
+      });
+    }
     settings=res[1].settings||{};
     // Services come from their own Sheets tab now
     var sheetServices=res[0].services||[];
@@ -961,8 +975,8 @@ function printInvoice(){
     +'.inv-total-amount{font-family:Barlow,sans-serif;font-weight:800;font-size:1.3rem;}'
     +'.inv-terms{font-size:.85rem;color:#333;line-height:1.8;white-space:pre-wrap;font-family:Barlow,sans-serif;}'
     +'div[style]{display:block;}'
-    +'div[style*="background:#f9f9f9"]{background:#f9f9f9!important;border:1px solid #e0e0e0;border-radius:6px;padding:16px;margin-top:20px;page-break-inside:avoid;}'
-    +'div[style*="white-space:pre-wrap"]{white-space:pre-wrap;font-family:Barlow,sans-serif;font-size:.85rem;line-height:1.8;color:#333;}'
+    +'div[style*="padding-top:16px;border-top"]{margin-top:20px;}'
+    +'div[style*="white-space:pre-wrap"]{white-space:pre-wrap;font-family:Barlow,sans-serif;font-size:.85rem;line-height:1.6;color:#333;}'
     +'div[style*="padding-top:16px"]{border-top:1px solid #e0e0e0;padding-top:14px;margin-top:20px;}'
     +'div[style*="justify-content:space-between"]{display:flex;justify-content:space-between;}'
     +'div[style*="justify-content:flex-end"]{display:flex;justify-content:flex-end;}'
@@ -1024,9 +1038,9 @@ function previewInvoice(id){
   if(!piText){var piEl=document.getElementById('s-payment-instructions');if(piEl) piText=piEl.value||'';}
   if(piText){
     var piLines=piText.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    footerHtml='<div style="margin-top:24px;padding:20px;background:#f9f9f9;border-radius:8px;border:1px solid #e0e0e0;">'
-      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:10px;">Payment Instructions</div>'
-      +'<div style="font-size:.85rem;line-height:1.8;color:#333;white-space:pre-wrap;font-family:Barlow,sans-serif;">'+piLines+'</div>'
+    footerHtml='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0e0;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Payment Instructions</div>'
+      +'<div style="font-size:.85rem;color:#333;line-height:1.6;white-space:pre-wrap;font-family:Barlow,sans-serif;">'+piLines+'</div>'
       +'</div>';
   }
   // 2. Payment Terms AFTER
@@ -1037,7 +1051,10 @@ function previewInvoice(id){
       +'<div style="font-size:.85rem;color:#333;line-height:1.6;font-family:Barlow,sans-serif;">'+termsText+'</div>'
       +'</div>';
   }
-  var companyLine=inv.clientCompany?inv.clientCompany+'<br>':'';
+  var rawCompany=inv.clientCompany||'';
+  // Sanitize company — reject if it looks like JSON
+  if(rawCompany[0]==='['||rawCompany[0]==='"') rawCompany='';
+  var companyLine=rawCompany?rawCompany+'<br>':'';
   // Get client address from clients list
   var clientObj=clients.find(function(c){return c.email===inv.clientEmail;});
   var _addr=inv.clientAddress||(clientObj?clientObj.address||'':'');
