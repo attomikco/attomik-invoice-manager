@@ -241,10 +241,10 @@ textarea{resize:vertical;min-height:80px;}
       <button class="btn btn-primary" onclick="openNewInvoice()"><i class="fa-solid fa-plus"></i> New Invoice</button>
     </div>
     <div class="stats-row" style="grid-template-columns:repeat(4,1fr);">
-      <div class="stat-card"><div class="stat-label">Invoiced — This Year</div><div class="stat-value accent" id="stat-total">$0</div></div>
+      <div class="stat-card"><div class="stat-label">Invoiced — This Year</div><div class="stat-value" id="stat-total">$0</div></div>
+      <div class="stat-card"><div class="stat-label">Paid — This Year</div><div class="stat-value" style="color:#00aa66;" id="stat-paid">$0</div></div>
       <div class="stat-card"><div class="stat-label">Outstanding</div><div class="stat-value" id="stat-outstanding">$0</div></div>
-      <div class="stat-card"><div class="stat-label">Pipeline (Draft)</div><div class="stat-value" style="color:#00aa66;" id="stat-pipeline">$0</div></div>
-      <div class="stat-card"><div class="stat-label">Invoices — This Year</div><div class="stat-value" id="stat-count">0</div></div>
+      <div class="stat-card"><div class="stat-label">Pipeline (Draft)</div><div class="stat-value" style="color:var(--muted);" id="stat-pipeline">$0</div></div>
     </div>
     <!-- REVENUE INTELLIGENCE -->
     <div style="margin-top:40px;">
@@ -989,10 +989,14 @@ function renderServiceRevenue(){
 function renderDashboard(){
   var thisYear=new Date().getFullYear();
   var yearInvoices=invoices.filter(function(i){var d=parseLocalDate(i.date);return d&&d.getFullYear()===thisYear;});
-  document.getElementById('stat-total').textContent=fmt(yearInvoices.filter(function(i){return i.status==='paid';}).reduce(function(s,i){return s+totalOf(i);},0));
-  document.getElementById('stat-outstanding').textContent=fmt(yearInvoices.filter(function(i){return i.status==='sent'||i.status==='overdue';}).reduce(function(s,i){return s+totalOf(i);},0));
-  document.getElementById('stat-pipeline').textContent=fmt(yearInvoices.filter(function(i){return i.status==='draft';}).reduce(function(s,i){return s+totalOf(i);},0));
-  document.getElementById('stat-count').textContent=yearInvoices.filter(function(i){return i.status!=='draft';}).length;
+  var paidInv=yearInvoices.filter(function(i){return i.status==='paid';});
+  var outstandingInv=yearInvoices.filter(function(i){return i.status==='sent'||i.status==='overdue';});
+  var draftInv=yearInvoices.filter(function(i){return i.status==='draft';});
+  var totalInvoiced=paidInv.concat(outstandingInv).reduce(function(s,i){return s+totalOf(i);},0);
+  document.getElementById('stat-total').textContent=fmt(totalInvoiced);
+  document.getElementById('stat-paid').textContent=fmt(paidInv.reduce(function(s,i){return s+totalOf(i);},0));
+  document.getElementById('stat-outstanding').textContent=fmt(outstandingInv.reduce(function(s,i){return s+totalOf(i);},0));
+  document.getElementById('stat-pipeline').textContent=fmt(draftInv.reduce(function(s,i){return s+totalOf(i);},0));
   renderRows('dashboard-table-body','dashboard-empty',false);
   renderAnalytics();
 }
