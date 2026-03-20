@@ -1040,9 +1040,7 @@ function editInvoice(id){
   document.getElementById('inv-client-email').value=inv.clientEmail||'';
   document.getElementById('inv-client-company').value=inv.clientCompany||'';
   document.getElementById('inv-notes').value=inv.notes||'';
-  document.getElementById('line-items-container').innerHTML='';
-  (inv.items||[]).forEach(function(it){addLineItem(it);});
-  // Pre-select matching client in dropdown
+  // 1. Populate client dropdown FIRST, then pre-select
   populateClientDropdown();
   var csel=document.getElementById('inv-client-select');
   var matchClient=clients.find(function(c){return c.email===inv.clientEmail;});
@@ -1051,7 +1049,11 @@ function editInvoice(id){
       if(csel.options[ci].value===matchClient.id){csel.selectedIndex=ci;break;}
     }
   }
-  updateTotal();populateClientDropdown();openModal('invoice-modal');
+  // 2. Add line items AFTER service dropdown is built so pre-selection works
+  document.getElementById('line-items-container').innerHTML='';
+  (inv.items||[]).forEach(function(it){addLineItem(it);});
+  updateTotal();
+  openModal('invoice-modal');
 }
 function duplicateInvoice(id){
   var orig=invoices.find(function(i){return i.id===id;});
@@ -1067,9 +1069,19 @@ function duplicateInvoice(id){
   document.getElementById('inv-client-email').value=orig.clientEmail||'';
   document.getElementById('inv-client-company').value=orig.clientCompany||'';
   document.getElementById('inv-notes').value=orig.notes||'';
+  // Populate dropdowns FIRST then add line items so pre-selection works
+  populateClientDropdown();
+  var csel=document.getElementById('inv-client-select');
+  var matchClient=clients.find(function(c){return c.email===orig.clientEmail;});
+  if(matchClient&&csel){
+    for(var ci=0;ci<csel.options.length;ci++){
+      if(csel.options[ci].value===matchClient.id){csel.selectedIndex=ci;break;}
+    }
+  }
   document.getElementById('line-items-container').innerHTML='';
   (orig.items||[]).forEach(function(it){addLineItem(it);});
-  updateTotal();populateClientDropdown();openModal('invoice-modal');
+  updateTotal();
+  openModal('invoice-modal');
   toast('Duplicated — update dates and save');
 }
 async function deleteInvoice(id){
