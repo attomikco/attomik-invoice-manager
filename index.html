@@ -716,7 +716,11 @@ function renderMRR(){
   var monthly={};
   invoices.forEach(function(inv){
     if(!inv.date) return;
-    var d=new Date(inv.date);
+    var s=String(inv.date).trim().slice(0,10);
+    var parts=s.split('-');
+    if(parts.length!==3) return;
+    var year=parseInt(parts[0]),mon=parseInt(parts[1])-1,day=parseInt(parts[2]);
+    var d=new Date(year,mon,day);
     if(isNaN(d)) return;
     var key=d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0');
     monthly[key]=(monthly[key]||0)+totalOf(inv);
@@ -758,7 +762,9 @@ function renderAgingChart(){
   var buckets={current:0,d30:0,d60:0,d90:0};
   var counts={current:0,d30:0,d60:0,d90:0};
   invoices.filter(function(i){return i.status!=='paid'&&i.status!=='draft';}).forEach(function(inv){
-    var due=new Date(inv.due);
+    var ds=String(inv.due||'').trim().slice(0,10).split('-');
+    if(ds.length!==3) return;
+    var due=new Date(parseInt(ds[0]),parseInt(ds[1])-1,parseInt(ds[2]));
     if(isNaN(due)) return;
     var days=Math.floor((now-due)/(1000*60*60*24));
     var amt=totalOf(inv);
