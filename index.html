@@ -367,13 +367,19 @@
 
 <!-- CLIENT MODAL -->
 <div class="modal-overlay" id="client-modal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header"><div class="modal-title">Add Client</div><button class="modal-close" onclick="closeModal('client-modal')">✕</button></div>
-    <div class="form-grid">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><div class="modal-title" id="client-modal-title">Add Client</div><button class="modal-close" onclick="closeModal('client-modal')">✕</button></div>
+    <div class="form-grid" style="margin-bottom:16px">
       <div class="form-group"><label>Name</label><input type="text" id="c-name" placeholder="Jane Doe"/></div>
-      <div class="form-group"><label>Email</label><input type="email" id="c-email" placeholder="jane@company.com"/></div>
       <div class="form-group full"><label>Company</label><input type="text" id="c-company" placeholder="Company Inc."/></div>
       <div class="form-group full"><label>Address</label><input type="text" id="c-address" placeholder="456 Client Ave"/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label>Email Addresses — press Enter or comma to add multiple</label>
+      <div class="cc-tags" id="client-emails-container" onclick="document.getElementById('client-email-input').focus()" style="min-height:48px;">
+        <input class="cc-input" id="client-email-input" type="text" placeholder="jane@company.com" onkeydown="handleClientEmailKey(event)" onblur="commitClientEmail()"/>
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">The first email will be used as the primary "To" address on invoices.</div>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('client-modal')">Cancel</button>
@@ -525,6 +531,14 @@ const uid = () => 'id-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
 const subtotalOf = inv => (inv.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
 const totalOf = inv => { const sub=subtotalOf(inv); const disc=parseFloat(inv.discount)||0; return sub-(sub*(disc/100)); };
 const safeParseJSON = (str,fb) => { try { return JSON.parse(str); } catch(e) { return fb; } };
+function fmtDate(str) {
+  if(!str) return '—';
+  // Handle ISO strings like 2026-03-20T06:00:00.000Z and plain 2026-03-20
+  const d = new Date(str);
+  if(isNaN(d)) return str;
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
 function genNumber() {
   const nums = invoices.map(i=>parseInt((i.number||'').replace(/\D/g,''))||0);
   return 'INV-'+(Math.max(0,...nums)+1).toString().padStart(3,'0');
@@ -556,7 +570,7 @@ function renderRows(tbodyId, emptyId, actions) {
   empty.style.display='none';
   [...invoices].reverse().forEach(inv=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="mono">${inv.number}</td><td>${inv.clientName||'—'}</td><td>${inv.date||'—'}</td><td>${inv.due||'—'}</td><td class="mono">${fmt(totalOf(inv))}</td><td><span class="badge badge-${inv.status}">${inv.status}</span></td><td style="white-space:nowrap">
+    tr.innerHTML=`<td class="mono">${inv.number}</td><td>${inv.clientName||'—'}</td><td>${fmtDate(inv.date)}</td><td>${fmtDate(inv.due)}</td><td class="mono">${fmt(totalOf(inv))}</td><td><span class="badge badge-${inv.status}">${inv.status}</span></td><td style="white-space:nowrap">
       <button class="btn btn-ghost btn-sm" onclick="previewInvoice('${inv.id}')">View</button>
       ${actions?`<button class="btn btn-ghost btn-sm" onclick="editInvoice('${inv.id}')">Edit</button>
       <button class="btn btn-warn btn-sm" onclick="duplicateInvoice('${inv.id}')">Duplicate</button>
@@ -722,8 +736,12 @@ function populateClientDropdown() {
 function prefillClient() {
   const c=clients.find(cl=>cl.id===document.getElementById('inv-client-select').value); if(!c) return;
   document.getElementById('inv-client-name').value=c.name;
-  document.getElementById('inv-client-email').value=c.email;
+  // Use first email as primary, store all for later use in Gmail
+  const emails = Array.isArray(c.emails) ? c.emails : (c.email ? [c.email] : []);
+  document.getElementById('inv-client-email').value=emails[0]||'';
   document.getElementById('inv-client-company').value=c.company||'';
+  // Store extra emails on the invoice form for when Gmail send is opened
+  window._invoiceClientEmails = emails;
 }
 
 function addLineItem(item={}) {
@@ -903,7 +921,10 @@ function renderCcTags() {
 function openGmailSend() {
   if(!previewingInvoice) return;
   const inv=previewingInvoice; const s=settings;
-  ccEmails=[];
+  // Auto-populate CC from client's extra emails
+  const clientObj=clients.find(c=>c.email===inv.clientEmail);
+  const allEmails = clientObj && Array.isArray(clientObj.emails) ? clientObj.emails : (inv.clientEmail ? [inv.clientEmail] : []);
+  ccEmails = allEmails.slice(1); // first is To, rest go to CC
   renderCcTags();
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
@@ -929,17 +950,72 @@ async function sendViaGmail() {
 }
 
 // ── CLIENTS ───────────────────────────────────────────────────
-function openClientModal() { ['c-name','c-email','c-company','c-address'].forEach(id=>document.getElementById(id).value=''); openModal('client-modal'); }
+let clientEmails = [];
+let editingClientId = null;
+
+function handleClientEmailKey(e) {
+  if(e.key==='Enter'||e.key===','||e.key===';'){e.preventDefault();commitClientEmail();}
+  else if(e.key==='Backspace'&&e.target.value===''&&clientEmails.length>0){clientEmails.pop();renderClientEmailTags();}
+}
+
+function commitClientEmail() {
+  const inp=document.getElementById('client-email-input');
+  const val=inp.value.trim().replace(/,$/,'');
+  if(val&&val.includes('@')){clientEmails.push(val);inp.value='';renderClientEmailTags();}
+}
+
+function renderClientEmailTags() {
+  const container=document.getElementById('client-emails-container');
+  container.querySelectorAll('.cc-tag').forEach(t=>t.remove());
+  const inp=document.getElementById('client-email-input');
+  clientEmails.forEach((email,i)=>{
+    const tag=document.createElement('div');
+    tag.className='cc-tag';
+    tag.innerHTML=`${email}<button class="cc-tag-remove" onclick="clientEmails.splice(${i},1);renderClientEmailTags()">✕</button>`;
+    container.insertBefore(tag,inp);
+  });
+}
+
+function openClientModal(id) {
+  editingClientId = id || null;
+  clientEmails=[];
+  document.getElementById('client-modal-title').textContent = id ? 'Edit Client' : 'Add Client';
+  if(id) {
+    const c=clients.find(cl=>cl.id===id); if(!c) return;
+    document.getElementById('c-name').value=c.name||'';
+    document.getElementById('c-company').value=c.company||'';
+    document.getElementById('c-address').value=c.address||'';
+    clientEmails = Array.isArray(c.emails) ? [...c.emails] : (c.email ? [c.email] : []);
+  } else {
+    ['c-name','c-company','c-address'].forEach(id=>document.getElementById(id).value='');
+  }
+  renderClientEmailTags();
+  openModal('client-modal');
+}
 
 async function saveClient() {
-  const c={id:uid(),name:document.getElementById('c-name').value,email:document.getElementById('c-email').value,company:document.getElementById('c-company').value,address:document.getElementById('c-address').value,createdAt:new Date().toISOString()};
-  if(!c.name){toast('Name is required');return;}
-  clients.push(c); saveLocal(); closeModal('client-modal'); renderClientsTable();
+  commitClientEmail();
+  const name=document.getElementById('c-name').value;
+  if(!name){toast('Name is required');return;}
+  if(!clientEmails.length){toast('Add at least one email');return;}
+  const c={
+    id:editingClientId||uid(),
+    name,
+    email:clientEmails[0],
+    emails:clientEmails,
+    company:document.getElementById('c-company').value,
+    address:document.getElementById('c-address').value,
+    createdAt:new Date().toISOString()
+  };
+  if(editingClientId){const idx=clients.findIndex(cl=>cl.id===editingClientId);if(idx!==-1)clients[idx]=c;}
+  else clients.push(c);
+  saveLocal(); closeModal('client-modal'); renderClientsTable();
   if(isConnected){try{await api('saveClient',{client:c});toast('Client saved to Sheets ✓','success');}catch(e){toast('Saved locally','error');}}
   else toast('Client saved ✓','success');
 }
 
 async function deleteClient(id) {
+  if(!confirm('Delete this client?')) return;
   clients=clients.filter(c=>c.id!==id); saveLocal();
   if(isConnected){try{await api('deleteClient',{id});}catch(e){}}
   renderClientsTable(); toast('Client removed');
@@ -951,8 +1027,16 @@ function renderClientsTable() {
   if(!clients.length){empty.style.display='';return;}
   empty.style.display='none';
   clients.forEach(c=>{
+    const emailList = Array.isArray(c.emails) ? c.emails : (c.email ? [c.email] : []);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${c.name}</td><td>${c.email}</td><td>${c.company||'—'}</td><td>${invoices.filter(i=>i.clientEmail===c.email).length}</td><td><button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">Remove</button></td>`;
+    tr.innerHTML=`<td style="font-weight:500">${c.name}</td>
+      <td style="font-size:0.82rem;">${emailList.map(e=>`<span style="display:inline-block;background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:2px 8px;margin:1px;font-size:0.78rem;">${e}</span>`).join('')}</td>
+      <td>${c.company||'—'}</td>
+      <td>${invoices.filter(i=>i.clientEmail===c.email).length}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openClientModal('${c.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">Remove</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
