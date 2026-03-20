@@ -125,7 +125,7 @@ textarea{resize:vertical;min-height:80px;}
 /* INVOICE PREVIEW */
 .invoice-preview{background:#fff;padding:48px;border:1px solid var(--border);border-radius:10px;font-family:'Barlow',sans-serif;}
 .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;}
-.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;}
+.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;} .inv-brand-name svg{height:44px;display:block;}
 .inv-meta{text-align:right;}
 .inv-number{font-family:'DM Mono',monospace;font-size:1.1rem;color:#000;font-weight:700;background:#00ff97;display:inline-block;padding:2px 10px;border-radius:4px;}
 .inv-date{font-size:.8rem;color:var(--muted);margin-top:4px;}
@@ -141,7 +141,7 @@ textarea{resize:vertical;min-height:80px;}
 .inv-table .col-total{width:20%;text-align:right;}
 .inv-table th{padding:10px 0;text-align:left;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:2px solid #000;}
 .inv-table th.right,.inv-table td.right{text-align:right;}
-.inv-table td{padding:12px 0;font-size:.875rem;border-bottom:1px solid var(--border);vertical-align:top;}
+.inv-table td{padding:12px 0;font-size:.875rem;border-bottom:1px solid var(--border);vertical-align:top;} .inv-table tbody tr:last-child td{border-bottom:none;}
 .inv-total-amount{font-family:'Barlow',sans-serif;font-weight:800;font-size:1.6rem;}
 .inv-footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);}
 .inv-terms{font-size:.8rem;color:var(--muted);line-height:1.6;}
@@ -302,7 +302,7 @@ textarea{resize:vertical;min-height:80px;}
           <div class="form-group full"><label>Address</label><textarea id="s-address" placeholder="169 Madison Ave STE 2733&#10;New York, NY 10016" style="min-height:60px;resize:vertical;"></textarea></div>
           <div class="form-group"><label>Phone</label><input type="text" id="s-phone" placeholder="+1 555 000 0000"/></div>
           <div class="form-group"><label>Currency Symbol</label><input type="text" id="s-currency" placeholder="$" style="max-width:80px"/></div>
-          <div class="form-group full"><label>Default Payment Terms</label><textarea id="s-terms" placeholder="Payment due within 30 days."></textarea></div>
+          <div class="form-group full"><label>Default Payment Terms</label><textarea id="s-terms" placeholder="Thank you for your business! Payment is due within 15 days of the invoice date. Please make payments via the methods provided in the invoice. Late payments may be subject to a 5% late fee per month."></textarea></div>
         </div>
         <div style="margin-top:20px"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
       </div>
@@ -702,7 +702,8 @@ function renderServicesTable(){
   tbody.innerHTML='';
   if(!services.length){empty.style.display='';return;}
   empty.style.display='none';
-  services.forEach(function(svc){
+  var sorted=[].concat(services).sort(function(a,b){return (parseFloat(a.price)||0)-(parseFloat(b.price)||0);});
+  sorted.forEach(function(svc){
     var tr=document.createElement('tr');
     tr.innerHTML='<td style="font-weight:600">'+( svc.name||'—')+'</td>'
       +'<td style="color:var(--muted);font-size:.85rem;">'+( svc.desc||'—')+'</td>'
@@ -964,7 +965,7 @@ function printInvoice(){
     +'body{font-family:Barlow,sans-serif;background:white;color:#000;font-size:10.5pt;padding:14mm 16mm;}'
     +'.invoice-preview{padding:0;border:none;}'
     +'.inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}'
-    +'.inv-brand-name svg{height:26px;display:block;}'
+    +'.inv-brand-name svg{height:44px;display:block;}'
     +'.inv-meta{text-align:right;}'
     +'.inv-number{font-family:"DM Mono",monospace;font-size:.9rem;font-weight:700;background:#00ff97;display:inline-block;padding:2px 8px;border-radius:4px;}'
     +'.inv-date{font-size:.7rem;color:#666;margin-top:3px;}'
