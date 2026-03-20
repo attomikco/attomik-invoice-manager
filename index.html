@@ -240,9 +240,10 @@ textarea{resize:vertical;min-height:80px;}
       <div><div class="page-title">Dashboard</div><div class="page-subtitle">Overview of your invoicing</div></div>
       <button class="btn btn-primary" onclick="openNewInvoice()"><i class="fa-solid fa-plus"></i> New Invoice</button>
     </div>
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-label">Total Invoiced — This Year</div><div class="stat-value accent" id="stat-total">$0</div></div>
-      <div class="stat-card"><div class="stat-label">Outstanding — This Year</div><div class="stat-value" id="stat-outstanding">$0</div></div>
+    <div class="stats-row" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card"><div class="stat-label">Invoiced — This Year</div><div class="stat-value accent" id="stat-total">$0</div></div>
+      <div class="stat-card"><div class="stat-label">Outstanding</div><div class="stat-value" id="stat-outstanding">$0</div></div>
+      <div class="stat-card"><div class="stat-label">Pipeline (Draft)</div><div class="stat-value" style="color:#00aa66;" id="stat-pipeline">$0</div></div>
       <div class="stat-card"><div class="stat-label">Invoices — This Year</div><div class="stat-value" id="stat-count">0</div></div>
     </div>
     <!-- REVENUE INTELLIGENCE -->
@@ -282,6 +283,18 @@ textarea{resize:vertical;min-height:80px;}
           <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:16px;">Revenue by Service</div>
           <div id="service-revenue-chart"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div style="margin-top:16px;" id="pipeline-section">
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Pipeline — Draft Invoices</div>
+          <button class="btn btn-primary btn-sm" onclick="openNewInvoice()"><i class="fa-solid fa-plus"></i> Add</button>
+        </div>
+        <div id="pipeline-list"></div>
+        <div id="pipeline-empty" style="font-size:.85rem;color:var(--muted);padding:12px 0;display:none;">No draft invoices. Create invoices and save as Draft to build your pipeline.</div>
       </div>
     </div>
 
@@ -722,15 +735,63 @@ function showPage(name){
 
 // ── DASHBOARD ─────────────────────────────────────────────────
 function renderAnalytics(){
-  if(!invoices.length) return;
   renderMRR();
   renderAgingChart();
   renderClientRevenue();
   renderServiceRevenue();
+  renderPipeline();
+}
+
+function renderPipeline(){
+  var thisYear=new Date().getFullYear();
+  var drafts=invoices.filter(function(i){
+    return i.status==='draft';
+  }).sort(function(a,b){
+    var na=parseInt((a.number||'').replace(/\D/g,''))||0;
+    var nb=parseInt((b.number||'').replace(/\D/g,''))||0;
+    return nb-na;
+  });
+  var list=document.getElementById('pipeline-list');
+  var empty=document.getElementById('pipeline-empty');
+  if(!list) return;
+  list.innerHTML='';
+  if(!drafts.length){if(empty)empty.style.display='';return;}
+  if(empty) empty.style.display='none';
+  drafts.forEach(function(inv){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;';
+    var left=document.createElement('div');
+    left.style.cssText='display:flex;align-items:center;gap:12px;flex:1;';
+    left.innerHTML='<span class="mono" style="font-size:.82rem;color:var(--muted);">'+inv.number+'</span>'
+      +'<span style="font-weight:600;font-size:.875rem;">'+(inv.clientName||'—')+'</span>'
+      +'<span style="font-size:.78rem;color:var(--muted);">Due '+fmtDate(inv.due)+'</span>';
+    var right=document.createElement('div');
+    right.style.cssText='display:flex;align-items:center;gap:10px;';
+    var amtSpan=document.createElement('span');
+    amtSpan.style.cssText='font-weight:700;color:#00aa66;';
+    amtSpan.textContent=fmt(totalOf(inv));
+    var editBtn=document.createElement('button');
+    editBtn.className='btn btn-ghost btn-sm';
+    editBtn.title='Edit';
+    editBtn.innerHTML='<i class="fa-solid fa-pen"></i>';
+    (function(id){editBtn.onclick=function(){editInvoice(id);};})(inv.id);
+    var sendBtn=document.createElement('button');
+    sendBtn.className='btn btn-success btn-sm';
+    sendBtn.style.cssText='font-size:.75rem;padding:5px 10px;';
+    sendBtn.textContent='Send';
+    (function(id){sendBtn.onclick=function(){changeStatus(id,'sent');};})(inv.id);
+    right.appendChild(amtSpan);
+    right.appendChild(editBtn);
+    right.appendChild(sendBtn);
+    row.appendChild(left);
+    row.appendChild(right);
+        list.appendChild(row);
+  });
 }
 
 function renderMRR(){
   var monthly={};
+  var monthlyDraft={};
   var thisYearMRR=new Date().getFullYear();
   var currentMonth=new Date().getMonth();
   invoices.forEach(function(inv){
@@ -738,15 +799,19 @@ function renderMRR(){
     var d=parseLocalDate(inv.date);
     if(!d||isNaN(d)||d.getFullYear()!==thisYearMRR) return;
     var key=(d.getMonth()+1).toString().padStart(2,'0');
-    monthly[key]=(monthly[key]||0)+totalOf(inv);
+    if(inv.status==='draft'){
+      monthlyDraft[key]=(monthlyDraft[key]||0)+totalOf(inv);
+    } else {
+      monthly[key]=(monthly[key]||0)+totalOf(inv);
+    }
   });
   var months=[];
   for(var i=0;i<12;i++){
     var key=(i+1).toString().padStart(2,'0');
     var label=new Date(thisYearMRR,i,1).toLocaleDateString('en-US',{month:'short'});
-    months.push({key:key,label:label,val:monthly[key]||0,future:i>currentMonth});
+    months.push({key:key,label:label,val:monthly[key]||0,draft:monthlyDraft[key]||0,future:i>currentMonth});
   }
-  var max=Math.max.apply(null,months.map(function(m){return m.val;}));
+  var max=Math.max.apply(null,months.map(function(m){return m.val+m.draft;}));
   if(max===0) max=1;
   var chart=document.getElementById('mrr-chart');
   var labels=document.getElementById('mrr-labels');
@@ -757,34 +822,56 @@ function renderMRR(){
   months.forEach(function(m,idx){
     var pct=max>0?Math.max((m.val/max)*100,0):0;
     var isCurrent=idx===nowMonth;
-    var hasVal=m.val>0;
     // Bar wrapper
     var wrap=document.createElement('div');
     wrap.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:180px;position:relative;gap:0;';
     // Value label above bar (only if has value)
-    if(hasVal){
+    var totalVal=m.val+m.draft;
+    if(totalVal>0){
       var vlab=document.createElement('div');
       vlab.style.cssText='font-size:.6rem;font-weight:700;color:#000;font-family:Barlow,sans-serif;margin-bottom:3px;white-space:nowrap;';
-      // Format compactly: $41k instead of $41,000.00
-      var v=m.val;
+      var v=totalVal;
       var vstr=v>=1000?'$'+(v/1000).toFixed(v%1000===0?0:1)+'k':'$'+v;
-      vlab.textContent=vstr;
+      // Show draft portion separately if mixed
+      if(m.draft>0&&m.val>0){
+        var paidStr=m.val>=1000?'$'+(m.val/1000).toFixed(m.val%1000===0?0:1)+'k':'$'+m.val;
+        vlab.textContent=paidStr;
+        vlab.title='Paid: '+fmt(m.val)+' + Draft: '+fmt(m.draft);
+      } else if(m.draft>0){
+        vlab.style.color='#00aa66';
+        vstr=v>=1000?'$'+(v/1000).toFixed(v%1000===0?0:1)+'k':'$'+v;
+        vlab.textContent=vstr;
+      } else {
+        vlab.textContent=vstr;
+      }
       wrap.appendChild(vlab);
     } else {
-      // spacer
       var sp=document.createElement('div');
       sp.style.cssText='height:16px;';
       wrap.appendChild(sp);
     }
-    // Bar
+    var hasVal=m.val>0;
+    // Bar stack wrapper
+    var barWrap=document.createElement('div');
+    barWrap.style.cssText='width:100%;display:flex;flex-direction:column;border-radius:4px 4px 0 0;overflow:hidden;';
+    // Draft bar on top (lighter green)
+    if(m.draft>0){
+      var draftBar=document.createElement('div');
+      var draftPct=(m.draft/max)*140;
+      draftBar.style.cssText='width:100%;height:'+Math.max(draftPct,3)+'px;background:rgba(0,255,151,0.3);border-bottom:1px dashed #00cc78;';
+      barWrap.appendChild(draftBar);
+    }
+    // Paid bar
     var bar=document.createElement('div');
     var barH=hasVal?Math.max(pct*1.4,4):2;
-    bar.style.cssText='width:100%;border-radius:4px 4px 0 0;transition:height .4s;'
+    bar.style.cssText='width:100%;transition:height .4s;'
       +'background:'+(hasVal?'#00ff97':(m.future?'#f2f2f2':'#e8e8e8'))+';'
       +'height:'+barH+'px;'
-      +'min-height:2px;';
-    if(isCurrent&&!hasVal) bar.style.background='#d0fae8';
-    wrap.appendChild(bar);
+      +'min-height:2px;'
+      +((!m.draft)?'border-radius:4px 4px 0 0;':'');
+    if(isCurrent&&!hasVal&&!m.draft) bar.style.background='#d0fae8';
+    barWrap.appendChild(bar);
+    wrap.appendChild(barWrap);
     chart.appendChild(wrap);
     // Label
     var lbl=document.createElement('div');
@@ -902,9 +989,10 @@ function renderServiceRevenue(){
 function renderDashboard(){
   var thisYear=new Date().getFullYear();
   var yearInvoices=invoices.filter(function(i){var d=parseLocalDate(i.date);return d&&d.getFullYear()===thisYear;});
-  document.getElementById('stat-total').textContent=fmt(yearInvoices.reduce(function(s,i){return s+totalOf(i);},0));
-  document.getElementById('stat-outstanding').textContent=fmt(yearInvoices.filter(function(i){return i.status!=='paid';}).reduce(function(s,i){return s+totalOf(i);},0));
-  document.getElementById('stat-count').textContent=yearInvoices.length;
+  document.getElementById('stat-total').textContent=fmt(yearInvoices.filter(function(i){return i.status==='paid';}).reduce(function(s,i){return s+totalOf(i);},0));
+  document.getElementById('stat-outstanding').textContent=fmt(yearInvoices.filter(function(i){return i.status==='sent'||i.status==='overdue';}).reduce(function(s,i){return s+totalOf(i);},0));
+  document.getElementById('stat-pipeline').textContent=fmt(yearInvoices.filter(function(i){return i.status==='draft';}).reduce(function(s,i){return s+totalOf(i);},0));
+  document.getElementById('stat-count').textContent=yearInvoices.filter(function(i){return i.status!=='draft';}).length;
   renderRows('dashboard-table-body','dashboard-empty',false);
   renderAnalytics();
 }
