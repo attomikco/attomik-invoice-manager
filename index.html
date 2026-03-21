@@ -74,16 +74,16 @@ body{font-family:'Barlow',sans-serif;background:var(--paper);color:var(--ink);mi
 /* TABLE */
 .table-wrap{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
 table{width:100%;border-collapse:collapse;}
-thead th{padding:12px 16px;text-align:left;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--cream);border-bottom:1px solid var(--border);}
-tbody td{padding:14px 16px;font-size:.875rem;border-bottom:1px solid var(--border);}
+thead th{padding:12px 20px;text-align:left;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--cream);border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody td{padding:14px 20px;font-size:.875rem;border-bottom:1px solid var(--border);white-space:nowrap;}
 tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover{background:#f9f9f9;}
-.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;text-align:center;}
 .badge-draft,.status-select.status-draft{background:#f3f4f6;color:#6b7280;}
 .badge-sent,.status-select.status-sent{background:#dbeafe;color:#1d4ed8;}
 .badge-paid,.status-select.status-paid{background:#00ff97;color:#000;}
 .badge-overdue,.status-select.status-overdue{background:#fee2e2;color:#b91c1c;}
-.status-select{appearance:none;-webkit-appearance:none;border:none;padding:3px 8px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;outline:none;}
+.status-select{appearance:none;-webkit-appearance:none;border:none;padding:3px 8px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;outline:none;text-align:center;}
 
 /* FORMS */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
@@ -328,8 +328,8 @@ textarea{resize:vertical;min-height:80px;}
 
     <!-- PIPELINE -->
     <div style="margin-top:16px;" id="pipeline-section">
-      <div class="card" style="padding:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="card" style="padding:20px;overflow-x:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;min-width:500px;">
           <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Pipeline — Draft Invoices</div>
           <button class="btn btn-primary btn-sm" onclick="openNewInvoice()"><i class="fa-solid fa-plus"></i> Add</button>
         </div>
@@ -818,6 +818,7 @@ function renderPipeline(){
   var list=document.getElementById('pipeline-list');
   var empty=document.getElementById('pipeline-empty');
   if(!list) return;
+  list.style.minWidth='500px';
   list.innerHTML='';
   if(!drafts.length){if(empty)empty.style.display='';return;}
   if(empty) empty.style.display='none';
@@ -1621,8 +1622,8 @@ function openGmailSend(){
   renderCcTags();
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
-  document.getElementById('gmail-subject').value='Invoice '+inv.number+' from '+(s.name||'us');
-  document.getElementById('gmail-body').value='Hi '+(inv.clientName||'there')+',\n\nPlease find attached invoice '+inv.number+' for '+fmt(totalOf(inv))+', due on '+(inv.due||'the agreed date')+'.\n\n'+(inv.notes||s.terms||'')+'\n\nDon\'t hesitate to reach out with any questions.\n\nBest,\n'+(s.name||'')+'\n'+(s.email||'');
+  document.getElementById('gmail-subject').value='Invoice '+inv.number+' — Attomik Services';
+  document.getElementById('gmail-body').value='Hi Team,\n\nPlease find attached invoice '+inv.number+' for Attomik Services due on '+(inv.due||'the agreed date')+'.\n\nBest,\n'+(s.brandName||s.name||'Attomik')+'\n'+(s.email||'hello@attomik.co');
   closeModal('preview-modal');openModal('gmail-modal');
 }
 async function sendViaGmail(){
