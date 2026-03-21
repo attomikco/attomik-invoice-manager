@@ -125,7 +125,7 @@ textarea{resize:vertical;min-height:80px;}
 /* INVOICE PREVIEW */
 .invoice-preview{background:#fff;padding:48px;border:1px solid var(--border);border-radius:10px;font-family:'Barlow',sans-serif;}
 .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;}
-.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;} .inv-brand-name svg{height:44px;display:block;}
+.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;} .inv-brand-name svg{height:52px;display:block;}
 .inv-meta{text-align:right;}
 .inv-number{font-family:'DM Mono',monospace;font-size:1.1rem;color:#000;font-weight:700;background:#00ff97;display:inline-block;padding:2px 10px;border-radius:4px;}
 .inv-date{font-size:.8rem;color:var(--muted);margin-top:4px;}
@@ -139,10 +139,10 @@ textarea{resize:vertical;min-height:80px;}
 .inv-table .col-qty{width:8%;text-align:right;}
 .inv-table .col-price{width:20%;text-align:right;}
 .inv-table .col-total{width:20%;text-align:right;}
-.inv-table th{padding:10px 0;text-align:left;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:2px solid #000;}
+.inv-table th{padding:10px 0;text-align:left;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#999;border-bottom:1.5px solid #000;}
 .inv-table th.right,.inv-table td.right{text-align:right;}
-.inv-table td{padding:12px 0;font-size:.875rem;border-bottom:1px solid var(--border);vertical-align:top;} .inv-table tbody tr:last-child td{border-bottom:none;}
-.inv-total-amount{font-family:'Barlow',sans-serif;font-weight:800;font-size:1.6rem;}
+.inv-table td{padding:14px 0;font-size:.9rem;border-bottom:1px solid var(--border);vertical-align:top;} .inv-table tbody tr:last-child td{border-bottom:none;}
+.inv-total-amount{font-family:'Barlow',sans-serif;font-weight:800;font-size:1.8rem;letter-spacing:-.02em;}
 .inv-footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);}
 .inv-terms{font-size:.8rem;color:var(--muted);line-height:1.6;}
 
@@ -1427,7 +1427,7 @@ function printInvoice(){
     +'body{font-family:Barlow,sans-serif;background:white;color:#000;font-size:10.5pt;padding:14mm 16mm;}'
     +'.invoice-preview{padding:0;border:none;}'
     +'.inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}'
-    +'.inv-brand-name svg{height:44px;display:block;}'
+    +'.inv-brand-name svg{height:52px;display:block;}'
     +'.inv-meta{text-align:right;}'
     +'.inv-number{font-family:"DM Mono",monospace;font-size:.9rem;font-weight:700;background:#00ff97;display:inline-block;padding:2px 8px;border-radius:4px;}'
     +'.inv-date{font-size:.7rem;color:#666;margin-top:3px;}'
@@ -1435,18 +1435,19 @@ function printInvoice(){
     +'.inv-party-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:5px;}'
     +'.inv-party-name{font-weight:700;font-size:.9rem;margin-bottom:3px;}'
     +'.inv-party-detail{font-size:.76rem;color:#666;line-height:1.6;}'
-    +'.inv-table{width:100%;border-collapse:collapse;margin-bottom:8px;table-layout:fixed;}'
+    +'.inv-table{width:100%;border-collapse:collapse;margin-bottom:0;table-layout:fixed;}'
     +'.col-title{width:52%;}.col-desc{display:none;}.col-qty{width:8%;text-align:right;}.col-price{width:20%;text-align:right;}.col-total{width:20%;text-align:right;}'
-    +'.inv-table th{padding:7px 0;text-align:left;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#666;border-bottom:2px solid #000;}'
+    +'.inv-table th{padding:8px 0;text-align:left;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#999;border-bottom:1.5px solid #000;}'
     +'.inv-table th.right,.inv-table td.right{text-align:right;}'
-    +'.inv-table td{padding:9px 0;font-size:.82rem;border-bottom:1px solid #e0e0e0;vertical-align:top;}'
-    +'.inv-total-amount{font-family:Barlow,sans-serif;font-weight:800;font-size:1.3rem;}'
+    +'.inv-table td{padding:12px 0;font-size:.85rem;border-bottom:1px solid #ebebeb;vertical-align:top;}'
+    +'.inv-table tbody tr:last-child td{border-bottom:none;}'
+    +'.inv-total-amount{font-family:Barlow,sans-serif;font-weight:800;font-size:1.6rem;letter-spacing:-.02em;}'
     +'.inv-terms{font-size:.85rem;color:#333;line-height:1.8;white-space:pre-wrap;font-family:Barlow,sans-serif;}'
     +'div[style]{display:block;}'
     +'div[style*="padding-top:16px;border-top"]{margin-top:20px;}'
     +'div[style*="white-space:pre-wrap"]{white-space:pre-wrap;font-family:Barlow,sans-serif;font-size:.85rem;line-height:1.6;color:#333;}'
     +'div[style*="padding-top:16px"]{border-top:1px solid #e0e0e0;padding-top:14px;margin-top:20px;}'
-    +'div[style*="justify-content:space-between"]{display:flex;justify-content:space-between;}'
+    +'div[style*="justify-content:space-between"]{display:flex;justify-content:space-between;width:300px;}'
     +'div[style*="justify-content:flex-end"]{display:flex;justify-content:flex-end;}'
     +'div[style*="flex-direction:column"]{display:flex;flex-direction:column;gap:5px;}';
   var win=window.open('','_blank','width=900,height=1200');
@@ -1477,8 +1478,8 @@ function previewInvoice(id){
     var serviceTitle = rawTitle;
     var serviceDesc = (rawDesc && rawDesc !== rawTitle) ? rawDesc : '';
     var titleCell = serviceTitle
-      ? '<div style="font-weight:600;">'+serviceTitle+'</div>'
-        +(serviceDesc?'<div style="font-size:.82rem;color:#666;margin-top:4px;line-height:1.6;">'+serviceDesc+'</div>':'')
+      ? '<div style="font-weight:700;font-size:.95rem;">'+serviceTitle+'</div>'
+        +(serviceDesc?'<div style="font-size:.8rem;color:#999;margin-top:5px;line-height:1.6;">'+serviceDesc+'</div>':'')
       : '<div style="color:#333;">'+serviceDesc+'</div>';
     return '<tr>'
       +'<td class="col-title" style="padding-right:16px;vertical-align:top;padding-top:12px;padding-bottom:12px;">'+titleCell+'</td>'
@@ -1493,10 +1494,10 @@ function previewInvoice(id){
   var total=sub-discAmt;
   var totalsHtml='';
   if(disc>0){
-    totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;font-size:.85rem;color:#666;padding:4px 0;"><span>Subtotal</span><span>'+fmt(sub)+'</span></div>';
-    totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;font-size:.85rem;color:#666;padding:4px 0;"><span>Discount ('+disc+'%)</span><span>-'+fmt(discAmt)+'</span></div>';
+    totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;font-size:.82rem;color:#999;padding:3px 0;"><span>Subtotal</span><span>'+fmt(sub)+'</span></div>';
+    totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;font-size:.82rem;color:#999;padding:3px 0;"><span>Discount ('+disc+'%)</span><span>-'+fmt(discAmt)+'</span></div>';
   }
-  totalsHtml+='<div style="display:flex;justify-content:space-between;width:280px;padding-top:'+(disc>0?'10px':'0')+';'+(disc>0?'border-top:2px solid #000;':'')+'"><span style="font-size:.875rem;color:#666;">Total Due</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;padding-top:'+(disc>0?'12px':'4px')+';margin-top:'+(disc>0?'4px':'0')+';'+(disc>0?'border-top:2px solid #000;':'')+'"><span style="font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#666;">Total Due</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
   var footerHtml='';
   // 1. Payment Instructions FIRST
   var piText=s.paymentInstructions||'';
