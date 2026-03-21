@@ -1616,6 +1616,8 @@ function openGmailSend(){
   var clientObj=clients.find(function(c){return c.email===inv.clientEmail;});
   var allEmails=clientObj&&Array.isArray(clientObj.emails)?clientObj.emails:(inv.clientEmail?[inv.clientEmail]:[]);
   ccEmails=allEmails.slice(1);
+  // Always CC pablo@attomik.co
+  if(ccEmails.indexOf('pablo@attomik.co')===-1) ccEmails.push('pablo@attomik.co');
   renderCcTags();
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
