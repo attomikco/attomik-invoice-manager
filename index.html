@@ -125,7 +125,7 @@ textarea{resize:vertical;min-height:80px;}
 /* INVOICE PREVIEW */
 .invoice-preview{background:#fff;padding:48px;border:1px solid var(--border);border-radius:10px;font-family:'Barlow',sans-serif;}
 .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;}
-.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;} .inv-brand-name svg{height:83px;display:block;}
+.inv-brand-name{font-family:'Barlow',sans-serif;font-weight:800;font-size:2rem;} .inv-brand-name svg{height:100px;display:block;}
 .inv-meta{text-align:right;}
 .inv-number{font-family:'DM Mono',monospace;font-size:1.1rem;color:#000;font-weight:700;background:#00ff97;display:inline-block;padding:2px 10px;border-radius:4px;}
 .inv-date{font-size:.8rem;color:var(--muted);margin-top:4px;}
@@ -1428,7 +1428,7 @@ function printInvoice(){
     +'body{font-family:Barlow,sans-serif;background:white;color:#000;font-size:10.5pt;padding:14mm 16mm;}'
     +'.invoice-preview{padding:0;border:none;}'
     +'.inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}'
-    +'.inv-brand-name svg{height:83px;display:block;}'
+    +'.inv-brand-name svg{height:100px;display:block;}'
     +'.inv-meta{text-align:right;}'
     +'.inv-number{font-family:"DM Mono",monospace;font-size:.9rem;font-weight:700;background:#00ff97;display:inline-block;padding:2px 8px;border-radius:4px;}'
     +'.inv-date{font-size:.7rem;color:#666;margin-top:3px;}'
@@ -1494,11 +1494,9 @@ function previewInvoice(id){
   var discAmt=sub*(disc/100);
   var total=sub-discAmt;
   var totalsHtml='';
-  if(disc>0){
-    totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;font-size:.82rem;color:#999;padding:3px 0;"><span>Subtotal</span><span>'+fmt(sub)+'</span></div>';
-    totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;font-size:.82rem;color:#999;padding:3px 0;"><span>Discount ('+disc+'%)</span><span>-'+fmt(discAmt)+'</span></div>';
-  }
-  totalsHtml+='<div style="display:flex;justify-content:space-between;width:300px;padding-top:'+(disc>0?'12px':'4px')+';margin-top:'+(disc>0?'4px':'0')+';'+(disc>0?'border-top:2px solid #000;':'')+'"><span style="font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#666;">Total Due</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;font-size:.82rem;color:#999;padding:3px 0;"><span>Subtotal</span><span style="font-family:monospace;">'+fmt(sub)+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;font-size:.82rem;color:#999;padding:3px 0;"><span>Discount ('+(disc||0)+'%)</span><span style="font-family:monospace;">'+(disc>0?'-'+fmt(discAmt):'$0.00')+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;align-items:baseline;padding-top:12px;margin-top:6px;border-top:2px solid #000;"><span style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;">Total Due</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
   var footerHtml='';
   // 1. Payment Instructions FIRST
   var piText=s.paymentInstructions||'';
@@ -1623,7 +1621,7 @@ function openGmailSend(){
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
   document.getElementById('gmail-subject').value='Invoice '+inv.number+' — Attomik Services';
-  document.getElementById('gmail-body').value='Hi Team,\n\nPlease find attached invoice '+inv.number+' for Attomik Services due on '+(inv.due||'the agreed date')+'.\n\nBest,\n'+(s.brandName||s.name||'Attomik')+'\n'+(s.email||'hello@attomik.co');
+  document.getElementById('gmail-body').value='Hi Team,\n\nPlease find attached invoice '+inv.number+' for Attomik Services due on '+fmtDate(inv.due)+'.\n\nBest,\n'+(s.brandName||s.name||'Attomik')+'\n'+(s.email||'hello@attomik.co');
   closeModal('preview-modal');openModal('gmail-modal');
 }
 async function sendViaGmail(){
