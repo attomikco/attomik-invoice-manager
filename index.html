@@ -265,6 +265,7 @@ textarea{resize:vertical;min-height:80px;}
   <nav class="sidebar-nav">
     <div class="nav-item active" onclick="showPage('dashboard');closeSidebar()"><i class="fa-solid fa-gauge-high"></i> Dashboard</div>
     <div class="nav-item" onclick="showPage('invoices');closeSidebar()"><i class="fa-solid fa-file-invoice-dollar"></i> Invoices</div>
+    <div class="nav-item" onclick="showPage('proposals');closeSidebar()"><i class="fa-solid fa-file-contract"></i> Proposals</div>
     <div class="nav-item" onclick="showPage('clients');closeSidebar()"><i class="fa-solid fa-users"></i> Clients</div>
     <div class="nav-item" onclick="showPage('services');closeSidebar()"><i class="fa-solid fa-briefcase"></i> Services</div>
     <div class="nav-item" onclick="showPage('settings');closeSidebar()"><i class="fa-solid fa-building"></i> My Info</div>
@@ -346,6 +347,26 @@ textarea{resize:vertical;min-height:80px;}
         <tbody id="dashboard-table-body"></tbody></table>
         <div class="empty-state" id="dashboard-empty"><div class="empty-icon">◻</div><p>No invoices yet.</p></div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- PROPOSALS -->
+  <div class="page" id="page-proposals">
+    <div class="page-header">
+      <div><div class="page-title">Proposals</div><div class="page-subtitle">Quotes &amp; proposals sent to clients</div></div>
+      <button class="btn btn-primary" onclick="openNewProposal()"><i class="fa-solid fa-plus"></i> New Proposal</button>
+    </div>
+    <div class="stats-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="stat-card"><div class="stat-label">Total Proposals</div><div class="stat-value" id="prop-stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Open</div><div class="stat-value" style="color:#1d4ed8;" id="prop-stat-open">0</div></div>
+      <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" style="color:#00aa66;" id="prop-stat-winrate">—</div></div>
+      <div class="stat-card"><div class="stat-label">Pipeline Value</div><div class="stat-value" id="prop-stat-pipeline">$0</div></div>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table><thead><tr><th>Proposal #</th><th>Client</th><th>Date</th><th>Valid Until</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="proposals-table-body"></tbody></table>
+      <div class="empty-state" id="proposals-empty"><div class="empty-icon"><i class="fa-solid fa-file-contract" style="font-size:2.5rem;opacity:.2;"></i></div><p style="margin-top:12px;">No proposals yet.</p></div>
     </div>
   </div>
 
@@ -432,6 +453,80 @@ textarea{resize:vertical;min-height:80px;}
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+
+<!-- PROPOSAL MODAL -->
+<div class="modal-overlay" id="proposal-modal">
+  <div class="modal" style="max-width:780px;">
+    <div class="modal-header">
+      <div class="modal-title" id="proposal-modal-title">New Proposal</div>
+      <button class="modal-close" onclick="closeModal('proposal-modal')">✕</button>
+    </div>
+    <div class="section-title">Proposal Details</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Proposal Number</label><input type="text" id="prop-number" class="mono"/></div>
+      <div class="form-group"><label>Issue Date</label><input type="date" id="prop-date"/></div>
+      <div class="form-group"><label>Valid Until</label><input type="date" id="prop-valid"/></div>
+      <div class="form-group"><label>Status</label>
+        <select id="prop-status">
+          <option value="draft">Draft</option>
+          <option value="sent">Sent</option>
+          <option value="accepted">Accepted</option>
+          <option value="declined">Declined</option>
+        </select>
+      </div>
+    </div>
+    <div class="section-title">Client</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Saved Client</label><select id="prop-client-select" onchange="prefillProposalClient()"><option value="">— enter manually —</option></select></div>
+      <div class="form-group"><label>Client Name</label><input type="text" id="prop-client-name" placeholder="Jane Doe"/></div>
+      <div class="form-group"><label>Client Email</label><input type="email" id="prop-client-email" placeholder="jane@company.com"/></div>
+      <div class="form-group"><label>Company</label><input type="text" id="prop-client-company" placeholder="Company Inc."/></div>
+    </div>
+    <div class="section-title">Intro Message</div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <textarea id="prop-intro" style="min-height:80px;" placeholder="e.g. Thank you for the opportunity. We're excited to share this proposal for your review..."></textarea>
+    </div>
+    <div class="section-title">Services &amp; Pricing</div>
+    <div class="line-items-header"><span>Service</span><span>Title / Description</span><span>Qty</span><span>Rate</span><span>Total</span><span></span></div>
+    <div id="prop-line-items"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addProposalLineItem()" style="margin-top:4px"><i class="fa-solid fa-plus"></i> Add Item</button>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;gap:12px;align-items:center;">
+      <div style="display:flex;align-items:center;gap:8px;background:var(--cream);padding:8px 14px;border-radius:8px;border:1px solid var(--border);">
+        <label style="margin:0;font-size:.82rem;white-space:nowrap;">Discount</label>
+        <input type="number" id="prop-discount" min="0" max="100" step="any" value="0" oninput="updateProposalTotal()" style="width:60px;text-align:right;padding:6px 8px;"/>
+        <span style="font-size:.82rem;color:var(--muted);">%</span>
+      </div>
+    </div>
+    <div class="invoice-total-row">
+      <div style="text-align:right;display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;gap:40px;font-size:.875rem;color:var(--muted)"><span>Subtotal</span><span id="prop-subtotal" class="mono">$0.00</span></div>
+        <div style="display:flex;justify-content:space-between;gap:40px;font-size:.875rem;color:var(--muted)"><span id="prop-discount-label">Discount (0%)</span><span id="prop-discount-amt" class="mono">-$0.00</span></div>
+        <div style="display:flex;justify-content:space-between;gap:40px;align-items:baseline;padding-top:8px;border-top:1px solid var(--border);"><span class="total-label">Total</span><span class="total-value" id="prop-grand-total">$0.00</span></div>
+      </div>
+    </div>
+    <div class="section-title">Notes &amp; Terms</div>
+    <div class="form-group"><textarea id="prop-notes" placeholder="Payment terms, scope notes, next steps…" style="min-height:80px;"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('proposal-modal')">Cancel</button>
+      <button class="btn btn-secondary" onclick="saveProposal('draft')">Save Draft</button>
+      <button class="btn btn-primary" onclick="saveProposal('save')">Save Proposal</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROPOSAL PREVIEW MODAL -->
+<div class="modal-overlay" id="proposal-preview-modal">
+  <div class="modal" style="max-width:780px;">
+    <div class="modal-header no-print"><div class="modal-title">Proposal Preview</div><button class="modal-close" onclick="closeModal('proposal-preview-modal')">✕</button></div>
+    <div id="proposal-preview-content"></div>
+    <div class="form-actions no-print">
+      <button class="btn btn-ghost" onclick="closeModal('proposal-preview-modal')">Close</button>
+      <button class="btn btn-secondary" onclick="printProposal()"><i class="fa-solid fa-print"></i> Print / PDF</button>
+      <button class="btn btn-success" onclick="convertProposalToInvoice()" id="convert-btn"><i class="fa-solid fa-file-invoice-dollar"></i> Convert to Invoice</button>
     </div>
   </div>
 </div>
@@ -577,10 +672,15 @@ textarea{resize:vertical;min-height:80px;}
 
 <script>
 // ── PASSWORD ──────────────────────────────────────────────────
-var APP_PASSWORD='attomik2025';
-function checkPassword(){
+var APP_HASH='d44fbd169c1df6602909513b8e72b516cc1bad3bea217527edf0209fbb47619f';
+async function hashStr(s){
+  var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function checkPassword(){
   var val=document.getElementById('pw-input').value;
-  if(val===APP_PASSWORD){
+  var hashed=await hashStr(val);
+  if(hashed===APP_HASH){
     localStorage.setItem('inv_auth','1');
     document.getElementById('pw-gate').classList.add('hidden');
     init();
@@ -712,6 +812,7 @@ function loadLocalData(){
   invoices=JSON.parse(localStorage.getItem('inv_invoices')||'[]');
   clients=JSON.parse(localStorage.getItem('inv_clients')||'[]');
   settings=JSON.parse(localStorage.getItem('inv_settings')||'{}');
+  proposals=JSON.parse(localStorage.getItem('inv_proposals')||'[]');
   // Load services from dedicated localStorage key, fall back to defaults
   var storedServices=JSON.parse(localStorage.getItem('inv_services')||'[]');
   services=storedServices.length ? storedServices : DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
@@ -723,11 +824,12 @@ function saveLocal(){
   localStorage.setItem('inv_services',JSON.stringify(services));
 }
 function renderAll(){
-  loadSettingsForm(); // Always load settings first so s.name etc are ready
+  loadSettingsForm();
   renderDashboard();
   renderInvoicesTable();
   renderClientsTable();
   renderServicesTable();
+  renderProposalsPage();
 }
 
 // ── SETUP ─────────────────────────────────────────────────────
@@ -795,6 +897,7 @@ function showPage(name){
   });
   if(name==='settings') loadSettingsForm();
   if(name==='services') renderServicesTable();
+  if(name==='proposals') renderProposalsPage();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────
@@ -1812,6 +1915,429 @@ async function saveSettings(){
   } else {
     toast('No Sheets URL — saved locally only','success');
   }
+}
+
+
+// ── PROPOSALS ─────────────────────────────────────────────────
+var proposals=[];
+var editingProposalId=null;
+var previewingProposal=null;
+
+function genPropNumber(){
+  var nums=proposals.map(function(p){return parseInt((p.number||'').replace(/\D/g,''))||0;});
+  return '#PROP'+(Math.max.apply(null,[0].concat(nums))+1).toString().padStart(3,'0');
+}
+
+function propTotalOf(prop){
+  var sub=(prop.items||[]).reduce(function(s,it){return s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);},0);
+  var disc=parseFloat(prop.discount)||0;
+  return sub-(sub*(disc/100));
+}
+function propSubtotalOf(prop){
+  return (prop.items||[]).reduce(function(s,it){return s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);},0);
+}
+
+function renderProposalsPage(){
+  var tbody=document.getElementById('proposals-table-body');
+  var empty=document.getElementById('proposals-empty');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  // Stats
+  var open=proposals.filter(function(p){return p.status==='sent'||p.status==='draft';});
+  var accepted=proposals.filter(function(p){return p.status==='accepted';});
+  var declined=proposals.filter(function(p){return p.status==='declined';});
+  var decided=accepted.length+declined.length;
+  var winRate=decided>0?Math.round((accepted.length/decided)*100)+'%':'—';
+  var pipeline=open.reduce(function(s,p){return s+propTotalOf(p);},0);
+  document.getElementById('prop-stat-total').textContent=proposals.length;
+  document.getElementById('prop-stat-open').textContent=open.length;
+  document.getElementById('prop-stat-winrate').textContent=winRate;
+  document.getElementById('prop-stat-pipeline').textContent=fmt(pipeline);
+  if(!proposals.length){empty.style.display='';return;}
+  empty.style.display='none';
+  var sorted=[].concat(proposals).sort(function(a,b){
+    var na=parseInt((a.number||'').replace(/\D/g,''))||0;
+    var nb=parseInt((b.number||'').replace(/\D/g,''))||0;
+    return nb-na;
+  });
+  var statusColors={draft:'badge-draft',sent:'badge-sent',accepted:'badge-paid',declined:'badge-overdue'};
+  sorted.forEach(function(prop){
+    var tr=document.createElement('tr');
+    var badge='<span class="badge '+(statusColors[prop.status]||'badge-draft')+'">'+prop.status+'</span>';
+    tr.innerHTML='<td class="mono">'+prop.number+'</td>'
+      +'<td style="font-weight:600">'+(prop.clientName||'—')+'</td>'
+      +'<td>'+fmtDate(prop.date)+'</td>'
+      +'<td>'+fmtDate(prop.validUntil)+'</td>'
+      +'<td class="mono">'+fmt(propTotalOf(prop))+'</td>'
+      +'<td>'+badge+'</td>'
+      +'<td style="white-space:nowrap"></td>';
+    var actTd=tr.querySelector('td:last-child');
+    var btns=[
+      {cls:'btn-ghost',icon:'fa-eye',fn:function(id){return function(){previewProposal(id);};}},
+      {cls:'btn-ghost',icon:'fa-pen',fn:function(id){return function(){editProposal(id);};}},
+      {cls:'btn-warn',icon:'fa-copy',fn:function(id){return function(){duplicateProposal(id);};}},
+      {cls:'btn-danger',icon:'fa-trash',fn:function(id){return function(){deleteProposal(id);};}},
+    ];
+    btns.forEach(function(b){
+      var btn=document.createElement('button');
+      btn.className='btn '+b.cls+' btn-sm';
+      btn.innerHTML='<i class="fa-solid '+b.icon+'"></i>';
+      btn.onclick=b.fn(prop.id);
+      actTd.appendChild(btn);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function openNewProposal(){
+  editingProposalId=null;
+  document.getElementById('proposal-modal-title').textContent='New Proposal';
+  document.getElementById('prop-number').value=genPropNumber();
+  document.getElementById('prop-date').value=today();
+  document.getElementById('prop-valid').value=addDays(30);
+  document.getElementById('prop-status').value='draft';
+  document.getElementById('prop-discount').value=0;
+  document.getElementById('prop-intro').value='Thank you for the opportunity. We\'re excited to share this proposal for your review. Please don\'t hesitate to reach out with any questions.';
+  document.getElementById('prop-notes').value=settings.terms||DEFAULT_TERMS||'';
+  ['prop-client-name','prop-client-email','prop-client-company'].forEach(function(id){document.getElementById(id).value='';});
+  populatePropClientDropdown();
+  document.getElementById('prop-line-items').innerHTML='';
+  addProposalLineItem();
+  updateProposalTotal();
+  openModal('proposal-modal');
+}
+
+function editProposal(id){
+  var prop=proposals.find(function(p){return p.id===id;});
+  if(!prop) return;
+  editingProposalId=id;
+  document.getElementById('proposal-modal-title').textContent='Edit Proposal';
+  document.getElementById('prop-number').value=prop.number;
+  document.getElementById('prop-date').value=toDateInput(prop.date);
+  document.getElementById('prop-valid').value=toDateInput(prop.validUntil);
+  document.getElementById('prop-status').value=prop.status||'draft';
+  document.getElementById('prop-discount').value=prop.discount||0;
+  document.getElementById('prop-intro').value=prop.intro||'';
+  document.getElementById('prop-notes').value=prop.notes||'';
+  document.getElementById('prop-client-name').value=prop.clientName||'';
+  document.getElementById('prop-client-email').value=prop.clientEmail||'';
+  document.getElementById('prop-client-company').value=prop.clientCompany||'';
+  populatePropClientDropdown();
+  var csel=document.getElementById('prop-client-select');
+  var match=clients.find(function(c){return c.email===prop.clientEmail;});
+  if(match&&csel){for(var i=0;i<csel.options.length;i++){if(csel.options[i].value===match.id){csel.selectedIndex=i;break;}}}
+  document.getElementById('prop-line-items').innerHTML='';
+  (prop.items||[]).forEach(function(it){addProposalLineItem(it);});
+  updateProposalTotal();
+  openModal('proposal-modal');
+}
+
+function duplicateProposal(id){
+  var orig=proposals.find(function(p){return p.id===id;});
+  if(!orig) return;
+  editingProposalId=null;
+  document.getElementById('proposal-modal-title').textContent='Duplicate Proposal';
+  document.getElementById('prop-number').value=genPropNumber();
+  document.getElementById('prop-date').value=today();
+  document.getElementById('prop-valid').value=addDays(30);
+  document.getElementById('prop-status').value='draft';
+  document.getElementById('prop-discount').value=orig.discount||0;
+  document.getElementById('prop-intro').value=orig.intro||'';
+  document.getElementById('prop-notes').value=orig.notes||'';
+  document.getElementById('prop-client-name').value=orig.clientName||'';
+  document.getElementById('prop-client-email').value=orig.clientEmail||'';
+  document.getElementById('prop-client-company').value=orig.clientCompany||'';
+  populatePropClientDropdown();
+  document.getElementById('prop-line-items').innerHTML='';
+  (orig.items||[]).forEach(function(it){addProposalLineItem(it);});
+  updateProposalTotal();
+  openModal('proposal-modal');
+}
+
+function deleteProposal(id){
+  if(!confirm('Delete this proposal?')) return;
+  proposals=proposals.filter(function(p){return p.id!==id;});
+  saveProposalsLocal();
+  renderProposalsPage();
+  toast('Proposal deleted');
+}
+
+function populatePropClientDropdown(){
+  var sel=document.getElementById('prop-client-select');
+  sel.innerHTML='<option value="">— enter manually —</option>';
+  clients.forEach(function(c){
+    var o=document.createElement('option');
+    o.value=c.id;
+    o.textContent=c.name+(c.company?' ('+c.company+')':'');
+    sel.appendChild(o);
+  });
+}
+
+function prefillProposalClient(){
+  var c=clients.find(function(cl){return cl.id===document.getElementById('prop-client-select').value;});
+  if(!c) return;
+  var emails=Array.isArray(c.emails)?c.emails:(c.email?[c.email]:[]);
+  document.getElementById('prop-client-name').value=c.name;
+  document.getElementById('prop-client-email').value=emails[0]||'';
+  document.getElementById('prop-client-company').value=c.company||'';
+}
+
+function addProposalLineItem(item){
+  item=item||{};
+  var rid='pli-'+Date.now()+Math.random();
+  var div=document.createElement('div');
+  div.className='line-item-row';div.id=rid;
+  var svcSel=document.createElement('select');
+  svcSel.style.cssText='padding:10px 8px;border:1px solid var(--border);border-radius:6px;font-size:.8rem;background:#fff;color:var(--ink);outline:none;';
+  populateServiceDropdown(svcSel);
+  svcSel.onchange=function(){
+    if(!svcSel.value) return;
+    var svc=JSON.parse(svcSel.value);
+    var inputs=div.querySelectorAll('input');
+    inputs[0].value=svc.name||'';
+    inputs[2].value=svc.price||'';
+    var th=div.querySelector('.pli-desc');
+    if(th) th.value=svc.desc||'';
+    updateProposalTotal();
+  };
+  if(item&&item.title){
+    var opts=svcSel.options;
+    for(var oi=0;oi<opts.length;oi++){
+      if(!opts[oi].value) continue;
+      try{var sv=JSON.parse(opts[oi].value);if(sv.name===item.title){svcSel.selectedIndex=oi;break;}}catch(e){}
+    }
+  }
+  div.appendChild(svcSel);
+  var rest=document.createElement('div');
+  rest.style.cssText='display:contents';
+  var titleInput=document.createElement('input');
+  titleInput.type='text';titleInput.className='pli-title';titleInput.placeholder='Service title';
+  titleInput.value=item.title||'';titleInput.oninput=updateProposalTotal;
+  var qtyInput=document.createElement('input');
+  qtyInput.type='number';qtyInput.placeholder='1';qtyInput.min='0';qtyInput.step='any';
+  qtyInput.value=item.qty||1;qtyInput.oninput=updateProposalTotal;qtyInput.style.textAlign='right';
+  var priceInput=document.createElement('input');
+  priceInput.type='number';priceInput.placeholder='0.00';priceInput.min='0';priceInput.step='any';
+  priceInput.value=item.price||'';priceInput.oninput=updateProposalTotal;priceInput.style.textAlign='right';
+  var totalDiv=document.createElement('div');
+  totalDiv.className='line-item-total';totalDiv.textContent=fmt((item.qty||1)*(item.price||0));
+  var removeBtn=document.createElement('button');
+  removeBtn.className='remove-line';removeBtn.textContent='✕';
+  (function(id){removeBtn.onclick=function(){document.getElementById(id).remove();updateProposalTotal();};})(rid);
+  var descInput=document.createElement('input');
+  descInput.type='hidden';descInput.className='pli-desc';descInput.value=item.desc||'';
+  [titleInput,qtyInput,priceInput,totalDiv,removeBtn,descInput].forEach(function(el){rest.appendChild(el);});
+  div.appendChild(rest);
+  document.getElementById('prop-line-items').appendChild(div);
+  updateProposalTotal();
+}
+
+function getPropLineItems(){
+  return Array.from(document.querySelectorAll('#prop-line-items .line-item-row')).map(function(row){
+    var inp=row.querySelectorAll('input');
+    var descEl=row.querySelector('.pli-desc');
+    return {title:inp[0].value,desc:descEl?descEl.value:inp[0].value,qty:inp[1].value,price:inp[2].value};
+  });
+}
+
+function updateProposalTotal(){
+  var subtotal=0;
+  document.querySelectorAll('#prop-line-items .line-item-row').forEach(function(row){
+    var inp=row.querySelectorAll('input');
+    var t=(parseFloat(inp[1]&&inp[1].value)||0)*(parseFloat(inp[2]&&inp[2].value)||0);
+    subtotal+=t;
+    var el=row.querySelector('.line-item-total');
+    if(el) el.textContent=fmt(t);
+  });
+  var disc=parseFloat(document.getElementById('prop-discount')&&document.getElementById('prop-discount').value)||0;
+  var discAmt=subtotal*(disc/100);
+  var grand=subtotal-discAmt;
+  var st=document.getElementById('prop-subtotal');if(st) st.textContent=fmt(subtotal);
+  var da=document.getElementById('prop-discount-amt');if(da) da.textContent='-'+fmt(discAmt);
+  var dl=document.getElementById('prop-discount-label');if(dl) dl.textContent='Discount ('+disc+'%)';
+  var gt=document.getElementById('prop-grand-total');if(gt) gt.textContent=fmt(grand);
+}
+
+function saveProposal(mode){
+  var prop={
+    id:editingProposalId||uid(),
+    number:document.getElementById('prop-number').value||genPropNumber(),
+    date:document.getElementById('prop-date').value,
+    validUntil:document.getElementById('prop-valid').value,
+    status:mode==='draft'?'draft':document.getElementById('prop-status').value,
+    clientName:document.getElementById('prop-client-name').value,
+    clientEmail:document.getElementById('prop-client-email').value,
+    clientCompany:document.getElementById('prop-client-company').value,
+    intro:document.getElementById('prop-intro').value,
+    items:getPropLineItems(),
+    discount:parseFloat(document.getElementById('prop-discount').value)||0,
+    notes:document.getElementById('prop-notes').value,
+    createdAt:new Date().toISOString()
+  };
+  if(editingProposalId){
+    var idx=proposals.findIndex(function(p){return p.id===editingProposalId;});
+    if(idx!==-1) proposals[idx]=prop;
+  } else {
+    proposals.push(prop);
+  }
+  saveProposalsLocal();
+  closeModal('proposal-modal');
+  renderProposalsPage();
+  toast('Proposal saved ✓','success');
+}
+
+function saveProposalsLocal(){
+  localStorage.setItem('inv_proposals',JSON.stringify(proposals));
+}
+
+function previewProposal(id){
+  var prop=proposals.find(function(p){return p.id===id;});
+  if(!prop) return;
+  previewingProposal=prop;
+  var s=Object.assign({},settings);
+  var sub=propSubtotalOf(prop);
+  var disc=parseFloat(prop.discount)||0;
+  var discAmt=sub*(disc/100);
+  var total=sub-discAmt;
+  var rows=(prop.items||[]).map(function(it){
+    var lt=fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0));
+    return '<tr>'
+      +'<td class="col-title" style="padding-right:16px;vertical-align:top;padding-top:12px;padding-bottom:12px;">'
+        +'<div style="font-weight:700;font-size:.9rem;">'+it.title+'</div>'
+        +(it.desc&&it.desc!==it.title?'<div style="font-size:.78rem;color:#888;margin-top:5px;line-height:1.6;">'+it.desc+'</div>':'')
+      +'</td>'
+      +'<td class="col-desc"></td>'
+      +'<td class="col-qty right">'+it.qty+'</td>'
+      +'<td class="col-price right">'+fmt(it.price)+'</td>'
+      +'<td class="col-total right">'+lt+'</td>'
+      +'</tr>';
+  }).join('');
+  var totalsHtml='';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;font-size:.82rem;color:#888;padding:3px 0;"><span>Subtotal</span><span style="font-family:monospace;">'+fmt(sub)+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;font-size:.82rem;color:#888;padding:3px 0;"><span>Discount ('+disc+'%)</span><span style="font-family:monospace;">'+(disc>0?'-'+fmt(discAmt):'$0.00')+'</span></div>';
+  totalsHtml+='<div style="display:flex;justify-content:space-between;gap:48px;align-items:baseline;padding-top:12px;margin-top:6px;border-top:2px solid #000;"><span style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;">Total</span><span class="inv-total-amount">'+fmt(total)+'</span></div>';
+  var brand=s.brandName||(s.name||'').split(' ')[0]||'—';
+  var legal=(s.brandName&&s.name&&s.name!==brand)?s.name:'';
+  var addr=s.address?s.address.replace(/\n/g,'<br>')+'<br>':'';
+  var clientObj=clients.find(function(c){return c.email===prop.clientEmail;});
+  var _addr=prop.clientAddress||(clientObj?clientObj.address||'':'');
+  if(!_addr||_addr[0]==='['||_addr[0]==='"') _addr='';
+  var rawCompany=prop.clientCompany||'';
+  if(rawCompany[0]==='['||rawCompany[0]==='"') rawCompany='';
+  var companyLine=rawCompany?rawCompany+'<br>':'';
+  var footerHtml='';
+  if(prop.notes){
+    footerHtml='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0e0;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:8px;">Terms &amp; Notes</div>'
+      +'<div style="font-size:.85rem;color:#333;line-height:1.6;font-family:Barlow,sans-serif;">'+prop.notes+'</div>'
+      +'</div>';
+  }
+  var convertBtn=document.getElementById('convert-btn');
+  if(convertBtn) convertBtn.style.display=(prop.status==='accepted'||prop.status==='sent')?'':'none';
+  document.getElementById('proposal-preview-content').innerHTML=
+    '<div class="invoice-preview">'
+    +'<div class="inv-header">'
+      +'<div class="inv-brand-name">'+LOGO_SVG+'</div>'
+      +'<div class="inv-meta">'
+        +'<div style="font-family:monospace;font-size:1rem;font-weight:700;background:#000;color:#fff;display:inline-block;padding:3px 10px;border-radius:4px;">'+prop.number+'</div>'
+        +'<div class="inv-date" style="margin-top:6px;">Issued: '+fmtDate(prop.date)+'</div>'
+        +'<div class="inv-date">Valid Until: '+fmtDate(prop.validUntil)+'</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="inv-parties">'
+      +'<div>'
+        +'<div class="inv-party-label">From</div>'
+        +'<div class="inv-party-name">'+brand+'</div>'
+        +'<div class="inv-party-detail">'+(legal?legal+'<br>':'')+addr+(s.email||'')+'</div>'
+      +'</div>'
+      +'<div>'
+        +'<div class="inv-party-label">Prepared For</div>'
+        +'<div class="inv-party-name">'+(prop.clientName||'—')+'</div>'
+        +'<div class="inv-party-detail">'+companyLine+(_addr?_addr.replace(/\n/g,'<br>')+'<br>':'')+(prop.clientEmail||'')+'</div>'
+      +'</div>'
+    +'</div>'
+    +(prop.intro?'<div style="background:#f9f9f9;border-left:3px solid #00ff97;padding:16px 20px;margin-bottom:32px;border-radius:0 8px 8px 0;font-size:.9rem;line-height:1.7;color:#333;">'+prop.intro+'</div>':'')
+    +'<table class="inv-table">'
+      +'<colgroup><col class="col-title"/><col class="col-desc"/><col class="col-qty"/><col class="col-price"/><col class="col-total"/></colgroup>'
+      +'<thead><tr>'
+        +'<th class="col-title">Service</th>'
+        +'<th class="col-desc"></th>'
+        +'<th class="col-qty right">Qty</th>'
+        +'<th class="col-price right">Rate</th>'
+        +'<th class="col-total right">Total</th>'
+      +'</tr></thead>'
+      +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+    +'<div style="display:flex;justify-content:flex-end;padding:16px 0 0;border-top:2px solid #000;margin-top:0;">'
+      +'<div style="display:flex;flex-direction:column;gap:4px;">'+totalsHtml+'</div>'
+    +'</div>'
+    +footerHtml
+    +'</div>';
+  openModal('proposal-preview-modal');
+}
+
+function printProposal(){
+  var content=document.getElementById('proposal-preview-content');
+  if(!content) return;
+  var win=window.open('','_blank','width=900,height=1200');
+  if(!win){alert('Please allow popups to print.');return;}
+  var css='@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap");'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Barlow,sans-serif;background:white;color:#000;font-size:12pt;padding:14mm 16mm;}'
+    +'@page{size:A4;margin:0;}'
+    +'.invoice-preview{padding:0;border:none;}'
+    +'.inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;}'
+    +'.inv-brand-name svg{height:44px!important;width:auto!important;display:block!important;}'
+    +'.inv-meta{text-align:right;}'
+    +'.inv-date{font-size:.8rem;color:#666;margin-top:4px;}'
+    +'.inv-parties{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:32px;}'
+    +'.inv-party-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:6px;}'
+    +'.inv-party-name{font-weight:700;font-size:1.05rem;margin-bottom:4px;}'
+    +'.inv-party-detail{font-size:.85rem;color:#666;line-height:1.7;}'
+    +'.inv-table{width:100%;border-collapse:collapse;margin-bottom:0;table-layout:fixed;}'
+    +'.col-title{width:52%;}.col-desc{display:none;}.col-qty{width:8%;text-align:right;}.col-price{width:20%;text-align:right;}.col-total{width:20%;text-align:right;}'
+    +'.inv-table th{padding:8px 0;text-align:left;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#888;border-bottom:1.5px solid #000;}'
+    +'.inv-table th.right,.inv-table td.right{text-align:right;}'
+    +'.inv-table td{padding:13px 0;font-size:.95rem;border-bottom:1px solid #ebebeb;vertical-align:top;}'
+    +'.inv-table tbody tr:last-child td{border-bottom:none;}'
+    +'.inv-total-amount{font-family:Barlow,sans-serif;font-weight:800;font-size:1.9rem;letter-spacing:-.02em;}'
+    +'div[style]{display:block;}'
+    +'div[style*="padding-top:16px"]{border-top:1px solid #e0e0e0;padding-top:14px;margin-top:20px;}';
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>'+css+'</style></head><body>'+content.innerHTML+'</body></html>');
+  win.document.close();
+  win.onload=function(){win.focus();win.print();};
+}
+
+function convertProposalToInvoice(){
+  if(!previewingProposal) return;
+  var prop=previewingProposal;
+  // Create new invoice from proposal
+  var inv={
+    id:uid(),
+    number:genNumber(),
+    date:today(),
+    due:addDays(30),
+    status:'draft',
+    clientName:prop.clientName,
+    clientEmail:prop.clientEmail,
+    clientCompany:prop.clientCompany,
+    clientAddress:prop.clientAddress||'',
+    items:prop.items,
+    discount:prop.discount||0,
+    notes:prop.notes||'',
+    createdAt:new Date().toISOString()
+  };
+  invoices.push(inv);
+  saveLocal();
+  // Mark proposal as converted
+  var p=proposals.find(function(p){return p.id===previewingProposal.id;});
+  if(p) p.status='accepted';
+  saveProposalsLocal();
+  renderProposalsPage();
+  closeModal('proposal-preview-modal');
+  toast('Converted to invoice '+inv.number+' ✓','success');
+  showPage('invoices');
+  renderInvoicesTable();
 }
 
 // ── INIT ──────────────────────────────────────────────────────
