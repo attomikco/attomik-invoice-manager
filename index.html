@@ -7,6 +7,7 @@
 <title>Invoice Manager — Attomik</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -508,6 +509,16 @@ textarea{resize:vertical;min-height:80px;}
         <div style="display:flex;justify-content:space-between;gap:40px;align-items:baseline;padding-top:8px;border-top:1px solid var(--border);"><span class="total-label">Total</span><span class="total-value" id="prop-grand-total">$0.00</span></div>
       </div>
     </div>
+    <div class="section-title">Pricing Details</div>
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div class="form-group"><label>Phase 1 Title</label><input type="text" id="prop-p1-title" placeholder="DTC Strategy + Shopify Build"/></div>
+      <div class="form-group"><label>Phase 1 Price</label><input type="text" id="prop-p1-price" placeholder="$8,000"/></div>
+      <div class="form-group"><label>Phase 1 Timeline</label><input type="text" id="prop-p1-timeline" placeholder="20 – 45 days"/></div>
+      <div class="form-group"><label>Phase 1 Payment Terms</label><input type="text" id="prop-p1-payment" placeholder="$5k to start · $3k on launch"/></div>
+      <div class="form-group"><label>Phase 2 Title</label><input type="text" id="prop-p2-title" placeholder="Growth + Ads Bundle"/></div>
+      <div class="form-group"><label>Phase 2 Monthly Rate</label><input type="text" id="prop-p2-monthly" placeholder="$4,000 / mo"/></div>
+      <div class="form-group"><label>Phase 2 Commitment</label><input type="text" id="prop-p2-commitment" placeholder="3-month minimum"/></div>
+    </div>
     <div class="section-title">Notes &amp; Terms</div>
     <div class="form-group"><textarea id="prop-notes" placeholder="Payment terms, scope notes, next steps…" style="min-height:80px;"></textarea></div>
     <div class="form-actions">
@@ -525,7 +536,7 @@ textarea{resize:vertical;min-height:80px;}
     <div id="proposal-preview-content"></div>
     <div class="form-actions no-print">
       <button class="btn btn-ghost" onclick="closeModal('proposal-preview-modal')">Close</button>
-      <button class="btn btn-secondary" onclick="printProposal()"><i class="fa-solid fa-print"></i> Print / PDF</button>
+      <button class="btn btn-secondary" onclick="downloadProposalPDF()"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
       <button class="btn btn-success" onclick="convertProposalToInvoice()" id="convert-btn"><i class="fa-solid fa-file-invoice-dollar"></i> Convert to Invoice</button>
     </div>
   </div>
@@ -1998,6 +2009,13 @@ function openNewProposal(){
   document.getElementById('prop-status').value='draft';
   document.getElementById('prop-discount').value=0;
   document.getElementById('prop-intro').value='Thank you for the opportunity. We\'re excited to share this proposal for your review. Please don\'t hesitate to reach out with any questions.';
+  document.getElementById('prop-p1-title').value='DTC Strategy + Shopify Build';
+  document.getElementById('prop-p1-price').value='$8,000';
+  document.getElementById('prop-p1-timeline').value='20 – 45 days';
+  document.getElementById('prop-p1-payment').value='$5k to start · $3k on launch';
+  document.getElementById('prop-p2-title').value='Growth + Ads Bundle';
+  document.getElementById('prop-p2-monthly').value='$4,000 / mo';
+  document.getElementById('prop-p2-commitment').value='3-month minimum';
   document.getElementById('prop-notes').value=settings.terms||DEFAULT_TERMS||'';
   ['prop-client-name','prop-client-email','prop-client-company'].forEach(function(id){document.getElementById(id).value='';});
   populatePropClientDropdown();
@@ -2018,6 +2036,13 @@ function editProposal(id){
   document.getElementById('prop-status').value=prop.status||'draft';
   document.getElementById('prop-discount').value=prop.discount||0;
   document.getElementById('prop-intro').value=prop.intro||'';
+  document.getElementById('prop-p1-title').value=prop.phase1Title||'DTC Strategy + Shopify Build';
+  document.getElementById('prop-p1-price').value=prop.phase1Price||'$8,000';
+  document.getElementById('prop-p1-timeline').value=prop.phase1Timeline||'20 – 45 days';
+  document.getElementById('prop-p1-payment').value=prop.phase1Payment||'$5k to start · $3k on launch';
+  document.getElementById('prop-p2-title').value=prop.phase2Title||'Growth + Ads Bundle';
+  document.getElementById('prop-p2-monthly').value=prop.phase2Monthly||'$4,000 / mo';
+  document.getElementById('prop-p2-commitment').value=prop.phase2Commitment||'3-month minimum';
   document.getElementById('prop-notes').value=prop.notes||'';
   document.getElementById('prop-client-name').value=prop.clientName||'';
   document.getElementById('prop-client-email').value=prop.clientEmail||'';
@@ -2169,6 +2194,13 @@ function saveProposal(mode){
     clientEmail:document.getElementById('prop-client-email').value,
     clientCompany:document.getElementById('prop-client-company').value,
     intro:document.getElementById('prop-intro').value,
+    phase1Title:document.getElementById('prop-p1-title').value,
+    phase1Price:document.getElementById('prop-p1-price').value,
+    phase1Timeline:document.getElementById('prop-p1-timeline').value,
+    phase1Payment:document.getElementById('prop-p1-payment').value,
+    phase2Title:document.getElementById('prop-p2-title').value,
+    phase2Monthly:document.getElementById('prop-p2-monthly').value,
+    phase2Commitment:document.getElementById('prop-p2-commitment').value,
     items:getPropLineItems(),
     discount:parseFloat(document.getElementById('prop-discount').value)||0,
     notes:document.getElementById('prop-notes').value,
@@ -2338,6 +2370,346 @@ function convertProposalToInvoice(){
   toast('Converted to invoice '+inv.number+' ✓','success');
   showPage('invoices');
   renderInvoicesTable();
+}
+
+
+var LOGO_BLACK_B64='data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCACsAlgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AIyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//9k=';
+var LOGO_WHITE_B64='data:image/png;base64,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vtgr4q+21csJgqI9+V4EEbTtuAe8EfMo0REFw+BfVDAcG05vduyzJ6O01c93M8UUwdu5nYxt5ugPTcEfMoG4n79Z8n13ye+2Gvir7bVzQugqI9+V4EEbTtuAe8EfMo1RAVyOBnVLT/B9L7va8syeitNZNepKiOKYP3dGYIWh3QHpu1w+ZU3RBIvEtfLTkuuWUXyxV0ddbaupY+Coj35ZAImAkb9e8FR0iICsxwi8RUmCTw4ZmtVJLi0rtqWqdu51ucT3eZiJ7wPenqPEKs6ILv8AE9cdAtWrB7totQLLQ5XRRkUVYWSBszR17GXZnVpPce9pO46Eg0ie0se5pIJB23B3H71/KICIiAiIgL6HOAADjsDuOq+IgunpLklh4ldH5dLs3q2wZlaoe0t1e8byShg2bMN/fOA9WRv4QPN39W1L1Bw+/wCCZXWYzklE6kr6V2xHeyRp97Ix34TSOoP+RBC66wXe52C9Ul5s1bNQ3CjlEtPURO2dG4dxH/x3EdCrm4xlWn3FThcOI5t7nsWf0cZ9x1cYAMrtur4d9uZp23dCT7R3bgKSIve6yaTZjpZfDQZJQF1JI4ikuMALqapH5LtujvNp2I+LYnwSAiIgIiICIiAiIgIiIPpJJ3JJPmV8REBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBclNNNTVEdRTyyQzROD45I3FrmOB3BBHUEHxXGiC0ek/FOZbP9p2s9ojyixTMETq10LZJg3w7Vh6SgdPWGzhtv6xXe5Bwz6eakWyTJNDM2ouR3rPt1VK6SKMnubzbdrCfyXtcfiVP1+2y3a62S4R3GzXKsttZH7yopZ3RSN+JzSCEHuM70Q1TwuWT7M4bcn08fU1dHH7pg28y+PcNH52x9ijsggkEEEdCCp9wji21bx8Rw3Kst+R0zAG8twpwJNvlI+Uk+13Mvf/xstP8AI27Z3ozQ1r/wn/cKvmPnyyxt2/eUFQkVvP4ZeFCpIlqNHKyKTxbHaKUN/wDtmA/wX0a9cNNr9ey6IiaUdQ6ptFE0g+xxe8hBVKx2S832sbRWS019zqXdBDR075nn5mglTjpxwl6o5PJHPe6emxWgOxMlc7nnI/JhYd9/Y8sXsbzxo3KmpTR4Xp5Z7PA3pH7pndK0e3kjbGB8W5ULaia56o53HJTX3K6ttDJuHUVHtTQEfiuazbnH5xcgny+23hl0OsdXaq+ni1DymSF0UsTy2YscR3Hb7nTjfy3kHtVOkRAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREH//2Q==';
+
+function downloadProposalPDF(){
+  if(!previewingProposal){toast('No proposal selected','error');return;}
+  var prop=previewingProposal;
+  var s=Object.assign({},settings);
+  var brand=s.brandName||(s.name||'').split(' ')[0]||'Attomik';
+  var clientName=prop.clientName||'Client';
+
+  var jspdf=window.jspdf;
+  if(!jspdf){toast('PDF library not loaded','error');return;}
+  var doc=new jspdf.jsPDF({unit:'pt',format:'letter'});
+  var W=612, H=792;
+  var margin=54;
+  var contentW=W-margin*2;
+
+  // ── Colors ──
+  var INK=[0,0,0], PAPER=[255,255,255], CREAM=[242,242,242];
+  var ACCENT=[0,255,151], MUTED=[102,102,102], BORDER=[224,224,224];
+  var DARK_CARD=[17,17,17], GREY_TEXT=[170,170,170], GREY_LINE=[40,40,40];
+
+  function setFill(rgb){doc.setFillColor(rgb[0],rgb[1],rgb[2]);}
+  function setStroke(rgb){doc.setDrawColor(rgb[0],rgb[1],rgb[2]);}
+  function setTextColor(rgb){doc.setTextColor(rgb[0],rgb[1],rgb[2]);}
+
+  function label(text,x,y){
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
+    setTextColor(MUTED);
+    doc.text(text.toUpperCase(),x,y,{charSpace:1.2});
+  }
+
+  function accentBar(y,w,x){
+    x=x||margin; w=w||contentW;
+    setFill(ACCENT);
+    doc.rect(x,y,w,4,'F');
+  }
+
+  function sectionHeader(labelText,headlineText,y){
+    accentBar(y);
+    y+=14;
+    label(labelText,margin,y); y+=14;
+    doc.setFont('helvetica','bold');doc.setFontSize(22);
+    setTextColor(INK);
+    doc.text(headlineText,margin,y); y+=32;
+    return y;
+  }
+
+  function bodyText(text,x,y,maxW,size,color){
+    size=size||10; color=color||MUTED; maxW=maxW||contentW;
+    doc.setFont('helvetica','normal');doc.setFontSize(size);
+    setTextColor(color);
+    var lines=doc.splitTextToSize(text,maxW);
+    doc.text(lines,x,y);
+    return y+lines.length*14;
+  }
+
+  function boldText(text,x,y,size,color){
+    size=size||11; color=color||INK;
+    doc.setFont('helvetica','bold');doc.setFontSize(size);
+    setTextColor(color);
+    doc.text(text,x,y);
+    return y+size*1.4;
+  }
+
+  // ── PAGE 1: COVER ──────────────────────────────────────────
+  // Black background
+  setFill(INK); doc.rect(0,0,W,H,'F');
+  // Grid lines
+  doc.setLineWidth(0.3); setStroke(GREY_LINE);
+  for(var gx=0;gx<W;gx+=60){doc.line(gx,50,gx,H);}
+  for(var gy=50;gy<H;gy+=60){doc.line(0,gy,W,gy);}
+  // Accent bar top
+  setFill(ACCENT); doc.rect(0,0,W,5,'F');
+  // Footer strip
+  setFill([17,17,17]); doc.rect(0,H-50,W,50,'F');
+  // Footer text
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  setTextColor([100,100,100]);
+  var today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  doc.text('Prepared for '+clientName+' · '+today+' · Confidential',margin,H-20);
+  doc.text('attomik.co',W-margin,H-20,{align:'right'});
+  // White logo
+  try{doc.addImage(LOGO_WHITE_B64,'PNG',margin,H*0.58,130,130*(909/3162));}catch(e){}
+  // Headline
+  doc.setFont('helvetica','bold');doc.setFontSize(38);
+  setTextColor(PAPER);
+  doc.text('Ecommerce Growth',margin,H*0.50);
+  doc.text('Proposal',margin,H*0.50+48);
+  // Client name
+  doc.setFont('helvetica','bold');doc.setFontSize(13);
+  setTextColor(ACCENT);
+  doc.text('Prepared for '+clientName,margin,H*0.50+86);
+
+  // ── PAGE 2: OUR APPROACH ──────────────────────────────────
+  doc.addPage();
+  var y=margin;
+  y=sectionHeader('Our Approach','Built to perform from day one.',y);
+  y=bodyText("We don't hand over a website and walk away. Every engagement starts with the commercial strategy — then we build the store, the email stack, and the paid acquisition engine around it. One team. No handoffs. Accountable to results.",margin,y,contentW);
+  y+=20;
+
+  // 3 dark value prop cards
+  var cardW=(contentW-16)/3;
+  var cards=[
+    ['ONE TEAM','Full-stack ecom','Strategy, build, and growth under one roof — no agency layers, no gaps.'],
+    ['AI-POWERED','Built to compound','We use AI tooling across SEO, content, and analytics to move faster.'],
+    ['RESULTS-DRIVEN','Accountable to numbers','CAC, AOV, LTV — we track what matters and optimize relentlessly.'],
+  ];
+  var cardH=110;
+  cards.forEach(function(card,i){
+    var cx=margin+i*(cardW+8);
+    // Card bg
+    setFill(INK); doc.roundedRect(cx,y,cardW,cardH,5,5,'F');
+    // Accent top bar
+    setFill(ACCENT); doc.rect(cx,y,cardW,4,'F');
+    // Label
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
+    setTextColor(MUTED);
+    doc.text(card[0],cx+14,y+18,{charSpace:1});
+    // Title
+    doc.setFont('helvetica','bold');doc.setFontSize(12);
+    setTextColor(PAPER);
+    doc.text(card[1],cx+14,y+36);
+    // Body
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    setTextColor([160,160,160]);
+    var lines=doc.splitTextToSize(card[2],cardW-28);
+    doc.text(lines,cx+14,y+52);
+  });
+  y+=cardH+20;
+  // Highlight box
+  setFill([245,255,250]); setStroke(ACCENT);
+  doc.setLineWidth(0.5);
+  doc.rect(margin,y,contentW,40,'FD');
+  setFill(ACCENT); doc.rect(margin,y,3,40,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+  setTextColor(INK);
+  var introText='This proposal outlines a two-phase engagement for '+clientName+' — starting with a full strategy and build, then moving into ongoing growth management.';
+  var introLines=doc.splitTextToSize(introText,contentW-20);
+  doc.text(introLines,margin+12,y+14);
+  y+=54;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  setTextColor([0,170,100]);
+  doc.text('attomik.co',margin,y);
+
+  // ── PAGE 3: PHASE 1 ───────────────────────────────────────
+  doc.addPage(); y=margin;
+  var p1title=(prop.phase1Title||'DTC Strategy + Shopify Build');
+  var p1price=(prop.phase1Price||'$8,000');
+  var p1timeline=(prop.phase1Timeline||'20 – 45 days');
+  var p1payment=(prop.phase1Payment||'$5k to start · $3k on launch');
+  y=sectionHeader('Phase One',p1title,y);
+  y=bodyText('This is a ground-up strategic build, not a redesign. It starts with the full commercial strategy — pricing architecture, bundles, offer structure, and a P&L built to maximize AOV and LTV from day one.',margin,y,contentW);
+  y+=16;
+
+  // Deliverable tiles 2-col
+  var deliverables=[
+    ['Commercial Strategy & P&L','Pricing architecture, bundles, and offer structure built to maximise AOV and LTV from day one.'],
+    ['Conversion-Optimized Store','Full site build — speed, SEO, mobile, and clear path to purchase on every page.'],
+    ['Email Automation Stack','Welcome, abandon, post-purchase, and win-back flows — built and running before launch.'],
+    ['Technical Foundation','SEO, AI SEO, analytics, and Search Console set up so organic growth compounds.'],
+    ['Subscription & Upsell Setup','Subscription integrations, upsell/cross-sell flows, and post-purchase sequences.'],
+    ['Retention Setup','Full retention strategy and automation built in from day one.'],
+  ];
+  var tileW=contentW/2-6;
+  var tileH=64;
+  deliverables.forEach(function(d,i){
+    var col=i%2; var row=Math.floor(i/2);
+    var tx=margin+col*(tileW+12);
+    var ty=y+row*(tileH+8);
+    setFill(CREAM); setStroke(BORDER);
+    doc.setLineWidth(0.5);
+    doc.rect(tx,ty,tileW,tileH,'FD');
+    setFill(ACCENT); doc.rect(tx,ty,tileW,2.5,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+    setTextColor(INK);
+    doc.text(d[0],tx+12,ty+16);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    setTextColor(MUTED);
+    var dlines=doc.splitTextToSize(d[1],tileW-24);
+    doc.text(dlines,tx+12,ty+30);
+  });
+  y+=Math.ceil(deliverables.length/2)*(tileH+8)+12;
+
+  // Pricing card
+  setStroke(BORDER); doc.setLineWidth(0.5);
+  setFill(CREAM); doc.rect(margin,y,contentW,78,'FD');
+  setFill(ACCENT); doc.rect(margin,y,contentW,4,'F');
+  var pcols=[[margin,'INVESTMENT',p1price],[margin+contentW/3,'TIMELINE',p1timeline],[margin+contentW*2/3,'PAYMENT TERMS',p1payment]];
+  pcols.forEach(function(pc,i){
+    if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+78);}
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
+    setTextColor(MUTED);
+    doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
+    doc.setFont('helvetica','bold');doc.setFontSize(i===2?13:18);
+    setTextColor(INK);
+    doc.text(pc[2],pc[0]+16,y+44);
+  });
+  y+=88;
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+  setTextColor(MUTED);
+  doc.text('* Email master template design available as optional add-on — $1,000',margin,y);
+
+  // ── PAGE 4: PHASE 2 ───────────────────────────────────────
+  doc.addPage(); y=margin;
+  var p2title=(prop.phase2Title||'Growth + Ads Bundle');
+  var p2monthly=(prop.phase2Monthly||'$4,000 / mo');
+  var p2commitment=(prop.phase2Commitment||'3-month minimum');
+  y=sectionHeader('Phase Two',p2title,y);
+  y=bodyText("Once the site is live, we take full ownership of ecom channel performance. No handoffs, no gaps — just a clear view of what's working and continuous improvement.",margin,y,contentW);
+  y+=16;
+
+  var phase2items=[
+    ['Paid Social — Meta','Weekly strategy and creative optimization, full campaign management across the funnel.'],
+    ['Performance Management','End-to-end tracking of CAC, AOV, and LTV with actionable reporting.'],
+    ['Email & Retention','Ongoing flows, campaigns, and segmentation to maximise repeat revenue.'],
+    ['Site & Landing Pages','Continuous CRO improvements, new landing pages, and offer testing as the channel scales.'],
+  ];
+  phase2items.forEach(function(item){
+    doc.setFont('helvetica','bold');doc.setFontSize(11);
+    setTextColor(ACCENT);
+    doc.text('→',margin,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+    setTextColor(INK);
+    doc.text(item[0],margin+18,y);
+    y+=14;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);
+    setTextColor(MUTED);
+    var ilines=doc.splitTextToSize(item[1],contentW-18);
+    doc.text(ilines,margin+18,y);
+    y+=ilines.length*13+10;
+  });
+  y+=8;
+  setStroke(BORDER);doc.setLineWidth(0.5);doc.line(margin,y,W-margin,y);y+=16;
+
+  // Phase 2 pricing card
+  setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
+  doc.rect(margin,y,contentW,80,'FD');
+  setFill(ACCENT);doc.rect(margin,y,contentW,4,'F');
+  var p2cols=[
+    [margin,'MONTHLY RETAINER',p2monthly,'Introductory rate — we prove the channel works, then grow from there.'],
+    [margin+contentW/3,'SCOPE','Full-channel ownership','Meta ads · Email · CRO · Analytics'],
+    [margin+contentW*2/3,'COMMITMENT',p2commitment,'Then rolling monthly from there.'],
+  ];
+  p2cols.forEach(function(pc,i){
+    if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+80);}
+    doc.setFont('helvetica','bold');doc.setFontSize(7);setTextColor(MUTED);
+    doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
+    doc.setFont('helvetica','bold');doc.setFontSize(16);setTextColor(INK);
+    doc.text(pc[2],pc[0]+16,y+40);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor(MUTED);
+    var nlines=doc.splitTextToSize(pc[3],contentW/3-32);
+    doc.text(nlines,pc[0]+16,y+56);
+  });
+
+  // ── PAGE 5: PARTNERSHIP ───────────────────────────────────
+  doc.addPage(); y=margin;
+  y=sectionHeader('The Partnership',"We don't hand things over. We stay in it.",y);
+  y=bodyText("Phase 1 builds the foundation. Phase 2 is where we take ownership of the channel and keep building — continuously optimizing, testing, and improving across every area. This is a long-term partnership, not a project handoff.",margin,y,contentW);
+  y+=16;
+
+  var colH=220; var colW2=contentW/2-4;
+  // Left col (cream) — Phase 1
+  setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
+  doc.rect(margin,y,colW2,colH,'FD');
+  setFill(BORDER);doc.rect(margin,y,colW2,3,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setTextColor(INK);
+  doc.text('Phase 1',margin+14,y+18);
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);setTextColor(MUTED);
+  doc.text('WHAT WE BUILD TOGETHER',margin+14,y+32,{charSpace:0.5});
+  var p1items=[
+    ['Commercial Strategy & P&L','Pricing architecture and bundles built to maximize AOV/LTV.'],
+    ['Shopify Store Build','Full conversion-optimized site build.'],
+    ['Email Automation','Welcome to win-back — fully automated.'],
+    ['Technical Foundation','SEO, analytics, Search Console.'],
+    ['Subscription & Upsell','Integrations and post-purchase flows.'],
+  ];
+  var iy=y+48;
+  p1items.forEach(function(item){
+    doc.setFont('helvetica','bold');doc.setFontSize(9);setTextColor(INK);
+    doc.text(item[0],margin+14,iy); iy+=12;
+    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor(MUTED);
+    var ls=doc.splitTextToSize(item[1],colW2-28);
+    doc.text(ls,margin+14,iy); iy+=ls.length*11+7;
+  });
+
+  // Right col (dark) — Ongoing
+  var rx=margin+colW2+8;
+  setFill(INK);doc.rect(rx,y,colW2,colH,'F');
+  setFill(ACCENT);doc.rect(rx,y,colW2,3,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setTextColor(PAPER);
+  doc.text('Ongoing',rx+14,y+18);
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);setTextColor([120,120,120]);
+  doc.text('HOW WE DRIVE GROWTH',rx+14,y+32,{charSpace:0.5});
+  var p2items2=[
+    ['Paid Social — Meta','Weekly strategy, creative direction, full optimization.'],
+    ['Email & Retention','Ongoing campaigns, flows, segmentation.'],
+    ['Performance Reporting','CAC, AOV, LTV, ROAS — always visible.'],
+    ['CRO & Landing Pages','Continuous improvements and offer testing.'],
+    ['Ongoing Ecom Support','Strategy, site, product — true partner.'],
+  ];
+  iy=y+48;
+  p2items2.forEach(function(item){
+    doc.setFont('helvetica','bold');doc.setFontSize(9);setTextColor(PAPER);
+    doc.text(item[0],rx+14,iy); iy+=12;
+    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor([160,160,160]);
+    var ls=doc.splitTextToSize(item[1],colW2-28);
+    doc.text(ls,rx+14,iy); iy+=ls.length*11+7;
+  });
+  y+=colH+22;
+
+  // Closing
+  doc.setFont('helvetica','bold');doc.setFontSize(12);setTextColor(INK);
+  var closing=clientName+' has real potential in this channel — the product is strong and the timing is right. We\'d love to be the team that helps build it properly.';
+  var closingLines=doc.splitTextToSize(closing,contentW);
+  doc.text(closingLines,margin,y); y+=closingLines.length*17+10;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);setTextColor(MUTED);
+  doc.text("Let's talk — happy to walk through everything on a call.",margin,y);
+
+  // ── Page chrome (pages 2-5) ───────────────────────────────
+  var totalPages=doc.getNumberOfPages();
+  for(var pg=2;pg<=totalPages;pg++){
+    doc.setPage(pg);
+    // Logo top left
+    try{doc.addImage(LOGO_BLACK_B64,'PNG',margin,22,65,65*(909/3162));}catch(e){}
+    // Footer line
+    setStroke(BORDER);doc.setLineWidth(0.5);
+    doc.line(margin,H-36,W-margin,H-36);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setTextColor([153,153,153]);
+    doc.text('Confidential — Prepared by Attomik',margin,H-24);
+    doc.text('Page '+(pg-1),W-margin,H-24,{align:'right'});
+  }
+
+  // ── Save ──────────────────────────────────────────────────
+  var filename='Attomik_Proposal_'+clientName.replace(/\s+/g,'_')+'_'+new Date().getFullYear()+'.pdf';
+  doc.save(filename);
+  toast('PDF downloaded ✓','success');
 }
 
 // ── INIT ──────────────────────────────────────────────────────
