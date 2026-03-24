@@ -498,7 +498,7 @@ textarea{resize:vertical;min-height:80px;}
       <div class="form-group"><label>Phase 1 Payment Terms</label><input type="text" id="prop-p1-payment" placeholder="$5k to start · $3k on launch"/></div>
       <div class="form-group"><label>Phase 2 Title</label><input type="text" id="prop-p2-title" placeholder="Growth + Ads Bundle"/></div>
       <div class="form-group"><label>Phase 2 Monthly Rate</label><input type="text" id="prop-p2-monthly" placeholder="$4,000 / mo"/></div>
-      <div class="form-group"><label>Phase 2 Commitment</label><input type="text" id="prop-p2-commitment" placeholder="3-month minimum"/></div>
+      <div class="form-group"><label>Commitment (months)</label><input type="number" id="prop-p2-commitment" min="1" step="1" placeholder="3" style="width:80px;"/></div>
     </div>
     <div class="section-title">Notes &amp; Terms</div>
     <div class="form-group"><textarea id="prop-notes" placeholder="Payment terms, scope notes, next steps…" style="min-height:80px;"></textarea></div>
@@ -1926,8 +1926,10 @@ function genPropNumber(){
 }
 
 function propTotalOf(prop){
-  var raw=prop.phase1Price||'';
-  return parseFloat(raw.replace(/[^0-9.]/g,''))||0;
+  var p1=parseFloat((prop.phase1Price||'').replace(/[^0-9.]/g,''))||0;
+  var p2=parseFloat((prop.phase2Monthly||'').replace(/[^0-9.]/g,''))||0;
+  var months=parseInt(prop.phase2Commitment)||0;
+  return p1+(p2*months);
 }
 
 function renderProposalsPage(){
@@ -1996,7 +1998,7 @@ function openNewProposal(){
   document.getElementById('prop-p1-payment').value='$5k to start · $3k on launch';
   document.getElementById('prop-p2-title').value='Growth + Ads Bundle';
   document.getElementById('prop-p2-monthly').value='$4,000 / mo';
-  document.getElementById('prop-p2-commitment').value='3-month minimum';
+  document.getElementById('prop-p2-commitment').value='3';
   document.getElementById('prop-notes').value=settings.terms||DEFAULT_TERMS||'';
   ['prop-client-name','prop-client-email','prop-client-company'].forEach(function(id){document.getElementById(id).value='';});
   openModal('proposal-modal');
@@ -2018,7 +2020,7 @@ function editProposal(id){
   document.getElementById('prop-p1-payment').value=prop.phase1Payment||'$5k to start · $3k on launch';
   document.getElementById('prop-p2-title').value=prop.phase2Title||'Growth + Ads Bundle';
   document.getElementById('prop-p2-monthly').value=prop.phase2Monthly||'$4,000 / mo';
-  document.getElementById('prop-p2-commitment').value=prop.phase2Commitment||'3-month minimum';
+  document.getElementById('prop-p2-commitment').value=parseInt(prop.phase2Commitment)||3;
   document.getElementById('prop-notes').value=prop.notes||'';
   document.getElementById('prop-client-name').value=prop.clientName||'';
   document.getElementById('prop-client-email').value=prop.clientEmail||'';
@@ -2042,7 +2044,7 @@ function duplicateProposal(id){
   document.getElementById('prop-p1-payment').value=orig.phase1Payment||'$5k to start · $3k on launch';
   document.getElementById('prop-p2-title').value=orig.phase2Title||'Growth + Ads Bundle';
   document.getElementById('prop-p2-monthly').value=orig.phase2Monthly||'$4,000 / mo';
-  document.getElementById('prop-p2-commitment').value=orig.phase2Commitment||'3-month minimum';
+  document.getElementById('prop-p2-commitment').value=parseInt(orig.phase2Commitment)||3;
   document.getElementById('prop-notes').value=orig.notes||'';
   document.getElementById('prop-client-name').value=orig.clientName||'';
   document.getElementById('prop-client-email').value=orig.clientEmail||'';
@@ -2108,7 +2110,8 @@ function previewProposal(id){
   var p1payment=prop.phase1Payment||'$5k to start · $3k on launch';
   var p2title=prop.phase2Title||'Growth + Ads Bundle';
   var p2monthly=prop.phase2Monthly||'$4,000 / mo';
-  var p2commitment=prop.phase2Commitment||'3-month minimum';
+  var p2months=parseInt(prop.phase2Commitment)||3;
+  var p2commitment=p2months+'-month minimum';
   var introText=prop.intro||'Acquisition only works when the foundation underneath it is solid. We build that foundation first — so every dollar you spend on growth actually compounds.';
   var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
   var now=new Date();
@@ -2517,7 +2520,8 @@ function downloadProposalPDF(){
   doc.addPage();y=80;
   var p2title=prop.phase2Title||'Growth + Ads Bundle';
   var p2monthly=prop.phase2Monthly||'$4,000 / mo';
-  var p2commitment=prop.phase2Commitment||'3-month minimum';
+  var p2months=parseInt(prop.phase2Commitment)||3;
+  var p2commitment=p2months+'-month minimum';
   y=sectionHeader('Phase Two',p2title,y);
   y=bodyText("Once the site is live, we take full ownership of ecom channel performance. No handoffs, no gaps \u2014 just a clear view of what's working and continuous improvement.",margin,y,contentW);
   y+=20;
