@@ -1926,12 +1926,8 @@ function genPropNumber(){
 }
 
 function propTotalOf(prop){
-  var sub=(prop.items||[]).reduce(function(s,it){return s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);},0);
-  var disc=parseFloat(prop.discount)||0;
-  return sub-(sub*(disc/100));
-}
-function propSubtotalOf(prop){
-  return (prop.items||[]).reduce(function(s,it){return s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);},0);
+  var raw=prop.phase1Price||'';
+  return parseFloat(raw.replace(/[^0-9.]/g,''))||0;
 }
 
 function renderProposalsPage(){
