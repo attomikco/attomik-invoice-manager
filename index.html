@@ -805,6 +805,11 @@ async function loadFromSheets(){
       services=storedServices.length ? storedServices : DEFAULT_SERVICES.map(function(s){return Object.assign({},s);});
     }
     localStorage.setItem('inv_services',JSON.stringify(services));
+    // Proposals
+    var sheetProposals=res[0].proposals||[];
+    var localProposals=JSON.parse(localStorage.getItem('inv_proposals')||'[]');
+    proposals=sheetProposals.length>=localProposals.length?sheetProposals:localProposals;
+    localStorage.setItem('inv_proposals',JSON.stringify(proposals));
     isConnected=true;
     setSync('connected','Connected');
     var si=document.getElementById('script-url-input');
@@ -2079,10 +2084,11 @@ function duplicateProposal(id){
   openModal('proposal-modal');
 }
 
-function deleteProposal(id){
+async function deleteProposal(id){
   if(!confirm('Delete this proposal?')) return;
   proposals=proposals.filter(function(p){return p.id!==id;});
   saveProposalsLocal();
+  if(scriptUrl){try{await api('deleteProposal',{id:id});}catch(e){console.error('Proposal delete sync error:',e);}}
   renderProposalsPage();
   toast('Proposal deleted');
 }
@@ -2183,7 +2189,7 @@ function updateProposalTotal(){
   var gt=document.getElementById('prop-grand-total');if(gt) gt.textContent=fmt(grand);
 }
 
-function saveProposal(mode){
+async function saveProposal(mode){
   var prop={
     id:editingProposalId||uid(),
     number:document.getElementById('prop-number').value||genPropNumber(),
@@ -2213,6 +2219,7 @@ function saveProposal(mode){
     proposals.push(prop);
   }
   saveProposalsLocal();
+  if(scriptUrl){try{await api('saveProposal',{proposal:prop});}catch(e){console.error('Proposal sync error:',e);}}
   closeModal('proposal-modal');
   renderProposalsPage();
   toast('Proposal saved ✓','success');
