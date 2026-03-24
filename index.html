@@ -2389,336 +2389,294 @@ function downloadProposalPDF(){
   var s=Object.assign({},settings);
   var brand=s.brandName||(s.name||'').split(' ')[0]||'Attomik';
   var clientName=prop.clientName||'Client';
-
   var jspdf=window.jspdf;
   if(!jspdf){toast('PDF library not loaded','error');return;}
   var doc=new jspdf.jsPDF({unit:'pt',format:'letter'});
-  var W=612, H=792;
-  var margin=54;
-  var contentW=W-margin*2;
+  var W=612,H=792,margin=54,contentW=W-margin*2;
 
-  // ── Colors ──
-  var INK=[0,0,0], PAPER=[255,255,255], CREAM=[242,242,242];
-  var ACCENT=[0,255,151], MUTED=[102,102,102], BORDER=[224,224,224];
-  var DARK_CARD=[17,17,17], GREY_TEXT=[170,170,170], GREY_LINE=[40,40,40];
+  // Colors
+  var INK=[0,0,0],PAPER=[255,255,255],CREAM=[242,242,242];
+  var ACCENT=[0,255,151],MUTED=[102,102,102],BORDER=[224,224,224];
+  var GREY_LINE=[40,40,40];
+  function setFill(c){doc.setFillColor(c[0],c[1],c[2]);}
+  function setStroke(c){doc.setDrawColor(c[0],c[1],c[2]);}
+  function setColor(c){doc.setTextColor(c[0],c[1],c[2]);}
 
-  function setFill(rgb){doc.setFillColor(rgb[0],rgb[1],rgb[2]);}
-  function setStroke(rgb){doc.setDrawColor(rgb[0],rgb[1],rgb[2]);}
-  function setTextColor(rgb){doc.setTextColor(rgb[0],rgb[1],rgb[2]);}
+  // Draw the Attomik atom logo + text programmatically
+  function drawLogoMark(x,y,sc,color){
+    var cx=x+9*sc,cy=y+9*sc,r=7*sc,dr=1.5*sc;
+    setStroke(color);doc.setLineWidth(0.8*sc);
+    doc.circle(cx,cy,r,'S');
+    setFill(color);
+    doc.circle(cx+r*0.71,cy-r*0.71,dr,'F');
+    doc.circle(cx-r*0.5,cy+r*0.87,dr,'F');
+    doc.circle(cx-r*0.2,cy-r*1.15,dr,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(10*sc);
+    setColor(color);
+    doc.text('ATTOMIK',x+21*sc,cy+3.5*sc);
+  }
+
+  function drawArrow(x,y,color){
+    setStroke(color);doc.setLineWidth(0.8);
+    doc.line(x,y,x+10,y);doc.line(x+7,y-2.5,x+10,y);doc.line(x+7,y+2.5,x+10,y);
+  }
 
   function label(text,x,y){
     doc.setFont('helvetica','bold');doc.setFontSize(7);
-    setTextColor(MUTED);
-    doc.text(text.toUpperCase(),x,y,{charSpace:1.2});
+    setColor(MUTED);doc.text(text.toUpperCase(),x,y,{charSpace:1.2});
   }
 
-  function accentBar(y,w,x){
-    x=x||margin; w=w||contentW;
-    setFill(ACCENT);
-    doc.rect(x,y,w,4,'F');
+  function accentBar(y,w,x){x=x||margin;w=w||contentW;setFill(ACCENT);doc.rect(x,y,w,4,'F');}
+
+  function sectionHeader(lbl,headline,y){
+    accentBar(y);y+=20;label(lbl,margin,y);y+=18;
+    doc.setFont('helvetica','bold');doc.setFontSize(22);setColor(INK);
+    var hl=doc.splitTextToSize(headline,contentW);doc.text(hl,margin,y);
+    return y+hl.length*28;
   }
 
-  function sectionHeader(labelText,headlineText,y){
-    accentBar(y);
-    y+=18;
-    label(labelText,margin,y); y+=22;
-    doc.setFont('helvetica','bold');doc.setFontSize(22);
-    setTextColor(INK);
-    doc.text(headlineText,margin,y); y+=32;
-    return y;
+  function bodyText(text,x,y,maxW,sz){
+    sz=sz||9.5;maxW=maxW||contentW;
+    doc.setFont('helvetica','normal');doc.setFontSize(sz);setColor(MUTED);
+    var lines=doc.splitTextToSize(text,maxW);doc.text(lines,x,y);
+    return y+lines.length*(sz*1.5);
   }
 
-  function bodyText(text,x,y,maxW,size,color){
-    size=size||10; color=color||MUTED; maxW=maxW||contentW;
-    doc.setFont('helvetica','normal');doc.setFontSize(size);
-    setTextColor(color);
-    var lines=doc.splitTextToSize(text,maxW);
-    doc.text(lines,x,y);
-    return y+lines.length*14;
-  }
-
-  function boldText(text,x,y,size,color){
-    size=size||11; color=color||INK;
-    doc.setFont('helvetica','bold');doc.setFontSize(size);
-    setTextColor(color);
-    doc.text(text,x,y);
-    return y+size*1.4;
-  }
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var now=new Date();
+  var monthYear=months[now.getMonth()]+' '+now.getFullYear();
 
   // ── PAGE 1: COVER ──────────────────────────────────────────
-  // Black background
-  setFill(INK); doc.rect(0,0,W,H,'F');
-  // Grid lines
-  doc.setLineWidth(0.3); setStroke(GREY_LINE);
+  setFill(INK);doc.rect(0,0,W,H,'F');
+  doc.setLineWidth(0.3);setStroke(GREY_LINE);
   for(var gx=0;gx<W;gx+=60){doc.line(gx,50,gx,H);}
   for(var gy=50;gy<H;gy+=60){doc.line(0,gy,W,gy);}
-  // Accent bar top
-  setFill(ACCENT); doc.rect(0,0,W,5,'F');
+  setFill(ACCENT);doc.rect(0,0,W,5,'F');
   // Footer strip
-  setFill([17,17,17]); doc.rect(0,H-50,W,50,'F');
-  // Footer text
-  doc.setFont('helvetica','normal');doc.setFontSize(8);
-  setTextColor([100,100,100]);
-  var today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  doc.text('Prepared for '+clientName+' · '+today+' · Confidential',margin,H-20);
-  doc.text('attomik.co',W-margin,H-20,{align:'right'});
-  // White logo
-  try{doc.addImage(LOGO_WHITE_B64,'PNG',margin,H*0.38,130,130*(909/3162));}catch(e){}
+  setFill([17,17,17]);doc.rect(0,H-50,W,50,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(8);setColor([100,100,100]);
+  doc.text('CONFIDENTIAL \u2014 FOR REVIEW ONLY',margin,H-20);
+  doc.text(monthYear,W-margin,H-20,{align:'right'});
+  // Logo (white, drawn programmatically on black bg)
+  drawLogoMark(margin,H*0.32,1.8,PAPER);
   // Headline
-  doc.setFont('helvetica','bold');doc.setFontSize(38);
-  setTextColor(PAPER);
-  doc.text('Ecommerce Growth',margin,H*0.48);
-  doc.text('Proposal',margin,H*0.48+48);
-  // Client name
-  doc.setFont('helvetica','bold');doc.setFontSize(13);
-  setTextColor(ACCENT);
-  doc.text('Prepared for '+clientName,margin,H*0.48+86);
+  var titleY=H*0.44;
+  doc.setFont('helvetica','bold');doc.setFontSize(40);setColor(PAPER);
+  doc.text('Ecommerce Growth',margin,titleY);
+  setColor(ACCENT);
+  doc.text('Proposal.',margin,titleY+50);
+  // Divider
+  setStroke([60,60,60]);doc.setLineWidth(0.5);
+  doc.line(margin,titleY+66,margin+200,titleY+66);
+  // Prepared for
+  doc.setFont('helvetica','bold');doc.setFontSize(7);setColor(MUTED);
+  doc.text('PREPARED FOR',margin,titleY+84,{charSpace:1.2});
+  doc.setFont('helvetica','bold');doc.setFontSize(16);setColor(PAPER);
+  doc.text(clientName,margin,titleY+104);
 
   // ── PAGE 2: OUR APPROACH ──────────────────────────────────
-  doc.addPage();
-  var y=margin;
-  y=sectionHeader('Our Approach','Built to perform from day one.',y);
-  y=bodyText("We don't hand over a website and walk away. Every engagement starts with the commercial strategy — then we build the store, the email stack, and the paid acquisition engine around it. One team. No handoffs. Accountable to results.",margin,y,contentW);
+  doc.addPage();var y=80;
+  y=sectionHeader('Our Approach','Where every channel compounds into growth.',y);
+  y=bodyText("Most brands fragment their ecommerce efforts across agencies, freelancers, and tools that were never meant to work together. The result is spend without compounding \u2014 ads that don't feed email, a site that doesn't reflect the offer, and reporting that shows activity instead of growth. At Attomik we bring strategy, execution, and technology under one roof, aligned around one number: revenue that grows predictably.",margin,y,contentW);
   y+=20;
-
-  // 3 dark value prop cards
-  var cardW=(contentW-16)/3;
+  // 3 dark cards
+  var cardW=(contentW-16)/3,cardH=120;
   var cards=[
-    ['ONE TEAM','Full-stack ecom','Strategy, build, and growth under one roof — no agency layers, no gaps.'],
-    ['AI-POWERED','Built to compound','We use AI tooling across SEO, content, and analytics to move faster.'],
-    ['RESULTS-DRIVEN','Accountable to numbers','CAC, AOV, LTV — we track what matters and optimize relentlessly.'],
+    ['ONE TEAM','Strategy through execution under one roof. No handoffs, no gaps, no excuses.'],
+    ['AI-POWERED','Proprietary tools and a marketing OS built to cut waste, surface opportunities, and keep every channel optimized.'],
+    ['BUILT TO COMPOUND','Every system we build gets more valuable over time \u2014 automations, data, and flows that work harder the longer they run.'],
   ];
-  var cardH=110;
   cards.forEach(function(card,i){
     var cx=margin+i*(cardW+8);
-    // Card bg
-    setFill(INK); doc.roundedRect(cx,y,cardW,cardH,5,5,'F');
-    // Accent top bar
-    setFill(ACCENT); doc.rect(cx,y,cardW,4,'F');
-    // Label
-    doc.setFont('helvetica','bold');doc.setFontSize(7);
-    setTextColor(MUTED);
+    setFill(INK);doc.roundedRect(cx,y,cardW,cardH,4,4,'F');
+    setFill(ACCENT);doc.rect(cx,y,cardW,3,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);setColor(ACCENT);
     doc.text(card[0],cx+14,y+18,{charSpace:1});
-    // Title
-    doc.setFont('helvetica','bold');doc.setFontSize(12);
-    setTextColor(PAPER);
-    doc.text(card[1],cx+14,y+36);
-    // Body
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    setTextColor([160,160,160]);
-    var lines=doc.splitTextToSize(card[2],cardW-28);
-    doc.text(lines,cx+14,y+52);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);setColor([170,170,170]);
+    var cl=doc.splitTextToSize(card[1],cardW-28);doc.text(cl,cx+14,y+34);
   });
   y+=cardH+20;
-  // Highlight box
-  setFill([245,255,250]); setStroke(ACCENT);
-  doc.setLineWidth(0.5);
-  doc.rect(margin,y,contentW,40,'FD');
-  setFill(ACCENT); doc.rect(margin,y,3,40,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(10.5);
-  setTextColor(INK);
-  var introText='This proposal outlines a two-phase engagement for '+clientName+' — starting with a full strategy and build, then moving into ongoing growth management.';
-  var introLines=doc.splitTextToSize(introText,contentW-20);
-  doc.text(introLines,margin+12,y+14);
-  y+=54;
-  doc.setFont('helvetica','normal');doc.setFontSize(9);
-  setTextColor([0,170,100]);
-  doc.text('attomik.co',margin,y);
-
-  // ── PAGE 3: PHASE 1 ───────────────────────────────────────
-  doc.addPage(); y=margin;
-  var p1title=(prop.phase1Title||'DTC Strategy + Shopify Build');
-  var p1price=(prop.phase1Price||'$8,000');
-  var p1timeline=(prop.phase1Timeline||'20 – 45 days');
-  var p1payment=(prop.phase1Payment||'$5k to start · $3k on launch');
-  y=sectionHeader('Phase One',p1title,y);
-  y=bodyText('This is a ground-up strategic build, not a redesign. It starts with the full commercial strategy — pricing architecture, bundles, offer structure, and a P&L built to maximize AOV and LTV from day one.',margin,y,contentW);
+  y=bodyText("The plan below is built in two phases \u2014 first we get the foundation right, then we scale what's proven to work. No shortcuts, no wasted spend.",margin,y,contentW);
   y+=16;
+  // Callout box
+  var calloutText=prop.intro||"Acquisition only works when the foundation underneath it is solid. We build that foundation first \u2014 so every dollar you spend on growth actually compounds.";
+  doc.setFont('helvetica','bold');doc.setFontSize(10);
+  var calloutLines=doc.splitTextToSize(calloutText,contentW-24);
+  var calloutH=calloutLines.length*14+20;
+  setFill([245,255,250]);setStroke(ACCENT);doc.setLineWidth(0.5);
+  doc.rect(margin,y,contentW,calloutH,'FD');
+  setFill(ACCENT);doc.rect(margin,y,3,calloutH,'F');
+  setColor(INK);doc.text(calloutLines,margin+14,y+14);
+  y+=calloutH+14;
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);setColor(MUTED);
+  doc.text('Learn more about how we work at attomik.co',margin,y);
 
-  // Deliverable tiles 2-col
+  // ── PAGE 3: PHASE ONE ─────────────────────────────────────
+  doc.addPage();y=80;
+  var p1title=prop.phase1Title||'DTC Strategy + Shopify Build';
+  var p1price=prop.phase1Price||'$8,000';
+  var p1timeline=prop.phase1Timeline||'20 \u2013 45 days';
+  var p1payment=prop.phase1Payment||'$5k to start \u00B7 $3k on launch';
+  y=sectionHeader('Phase One',p1title,y);
+  y=bodyText("A ground-up strategic build \u2014 not just a redesign. This phase lays the commercial, technical, and retention infrastructure needed to scale.",margin,y,contentW);
+  y+=16;
+  // Deliverable tiles (2-col with bullet points)
   var deliverables=[
-    ['Commercial Strategy & P&L','Pricing architecture, bundles, and offer structure built to maximise AOV and LTV from day one.'],
-    ['Conversion-Optimized Store','Full site build — speed, SEO, mobile, and clear path to purchase on every page.'],
-    ['Email Automation Stack','Welcome, abandon, post-purchase, and win-back flows — built and running before launch.'],
-    ['Technical Foundation','SEO, AI SEO, analytics, and Search Console set up so organic growth compounds.'],
-    ['Subscription & Upsell Setup','Subscription integrations, upsell/cross-sell flows, and post-purchase sequences.'],
-    ['Retention Setup','Full retention strategy and automation built in from day one.'],
+    ['Commercial Strategy',['\u00B7 Pricing architecture','\u00B7 Bundle & offer structure','\u00B7 P&L; built for AOV + LTV']],
+    ['Conversion-Optimized Store',['\u00B7 Full website build, conversion-optimized','\u00B7 Speed, SEO & mobile performance','\u00B7 Clear path to purchase on every page']],
+    ['Retention & Email',['\u00B7 Welcome to win-back automations','\u00B7 Subscription setup','\u00B7 Post-purchase sequences']],
+    ['Technical Foundation',['\u00B7 SEO & AI SEO setup','\u00B7 Analytics & Search Console','\u00B7 Performance optimized']],
+    ['Attomik AI Tools Access',['\u00B7 AI dashboard & insights platform','\u00B7 Marketing OS \u2014 all channels in one view','\u00B7 Real-time performance intelligence']],
   ];
-  var tileW=contentW/2-6;
-  var tileH=64;
+  var tileW=contentW/2-6,tileH=85;
   deliverables.forEach(function(d,i){
-    var col=i%2; var row=Math.floor(i/2);
-    var tx=margin+col*(tileW+12);
-    var ty=y+row*(tileH+8);
-    setFill(CREAM); setStroke(BORDER);
-    doc.setLineWidth(0.5);
+    var col=i%2,row=Math.floor(i/2);
+    var tx=margin+col*(tileW+12),ty=y+row*(tileH+8);
+    setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
     doc.rect(tx,ty,tileW,tileH,'FD');
-    setFill(ACCENT); doc.rect(tx,ty,tileW,2.5,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(9.5);
-    setTextColor(INK);
-    doc.text(d[0],tx+12,ty+16);
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    setTextColor(MUTED);
-    var dlines=doc.splitTextToSize(d[1],tileW-24);
-    doc.text(dlines,tx+12,ty+30);
+    setFill(ACCENT);doc.rect(tx,ty,tileW,2.5,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9.5);setColor(INK);
+    doc.text(d[0],tx+12,ty+18);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);setColor(MUTED);
+    var by=ty+32;
+    d[1].forEach(function(b){doc.text(b,tx+12,by);by+=12;});
   });
   y+=Math.ceil(deliverables.length/2)*(tileH+8)+12;
-
   // Pricing card
-  setStroke(BORDER); doc.setLineWidth(0.5);
-  setFill(CREAM); doc.rect(margin,y,contentW,78,'FD');
-  setFill(ACCENT); doc.rect(margin,y,contentW,4,'F');
+  setStroke(BORDER);doc.setLineWidth(0.5);
+  setFill(CREAM);doc.rect(margin,y,contentW,78,'FD');
+  setFill(ACCENT);doc.rect(margin,y,contentW,4,'F');
   var pcols=[[margin,'INVESTMENT',p1price],[margin+contentW/3,'TIMELINE',p1timeline],[margin+contentW*2/3,'PAYMENT TERMS',p1payment]];
   pcols.forEach(function(pc,i){
     if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+78);}
-    doc.setFont('helvetica','bold');doc.setFontSize(7);
-    setTextColor(MUTED);
-    doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
-    var pSize=i===0?18:i===1?16:12;
-    doc.setFont('helvetica','bold');doc.setFontSize(pSize);
-    setTextColor(INK);
-    var pLines=doc.splitTextToSize(pc[2],contentW/3-32);
-    doc.text(pLines,pc[0]+16,y+44);
+    doc.setFont('helvetica','bold');doc.setFontSize(7);setColor(MUTED);
+    doc.text(pc[1],pc[0]+16,y+20,{charSpace:0.8});
+    var fSz=i===0?18:i===1?16:11;
+    doc.setFont('helvetica','bold');doc.setFontSize(fSz);setColor(INK);
+    var vl=doc.splitTextToSize(pc[2],contentW/3-32);doc.text(vl,pc[0]+16,y+44);
   });
   y+=88;
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-  setTextColor(MUTED);
-  doc.text('* Email master template design available as optional add-on — $1,000',margin,y);
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);setColor(MUTED);
+  doc.text('+ Email master template design available as an optional add-on \u2014 $1,000',margin,y);
 
-  // ── PAGE 4: PHASE 2 ───────────────────────────────────────
-  doc.addPage(); y=margin;
-  var p2title=(prop.phase2Title||'Growth + Ads Bundle');
-  var p2monthly=(prop.phase2Monthly||'$4,000 / mo');
-  var p2commitment=(prop.phase2Commitment||'3-month minimum');
+  // ── PAGE 4: PHASE TWO ─────────────────────────────────────
+  doc.addPage();y=80;
+  var p2title=prop.phase2Title||'Growth + Ads Bundle';
+  var p2monthly=prop.phase2Monthly||'$4,000 / mo';
+  var p2commitment=prop.phase2Commitment||'3-month minimum';
   y=sectionHeader('Phase Two',p2title,y);
-  y=bodyText("Once the site is live, we take full ownership of ecom channel performance. No handoffs, no gaps — just a clear view of what's working and continuous improvement.",margin,y,contentW);
-  y+=16;
-
-  var phase2items=[
-    ['Paid Social — Meta','Weekly strategy and creative optimization, full campaign management across the funnel.'],
+  y=bodyText("Once the site is live, we take full ownership of ecom channel performance. No handoffs, no gaps \u2014 just a clear view of what's working and continuous improvement.",margin,y,contentW);
+  y+=20;
+  var p2items=[
+    ['Paid Social \u2014 Meta','Weekly strategy and creative optimization, full campaign management across the funnel.'],
     ['Performance Management','End-to-end tracking of CAC, AOV, and LTV with actionable reporting.'],
     ['Email & Retention','Ongoing flows, campaigns, and segmentation to maximise repeat revenue.'],
     ['Site & Landing Pages','Continuous CRO improvements, new landing pages, and offer testing as the channel scales.'],
   ];
-  phase2items.forEach(function(item){
-    setFill(ACCENT);doc.circle(margin+3,y-3,3,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(10.5);
-    setTextColor(INK);
-    doc.text(item[0],margin+18,y);
-    y+=14;
-    doc.setFont('helvetica','normal');doc.setFontSize(9);
-    setTextColor(MUTED);
-    var ilines=doc.splitTextToSize(item[1],contentW-18);
-    doc.text(ilines,margin+18,y);
-    y+=ilines.length*13+10;
+  p2items.forEach(function(item){
+    drawArrow(margin,y-3,MUTED);
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);setColor(INK);
+    doc.text(item[0],margin+20,y);y+=16;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);setColor(MUTED);
+    var il=doc.splitTextToSize(item[1],contentW-20);doc.text(il,margin+20,y);
+    y+=il.length*13+16;
   });
-  y+=8;
-  setStroke(BORDER);doc.setLineWidth(0.5);doc.line(margin,y,W-margin,y);y+=16;
-
-  // Phase 2 pricing card
+  y+=8;setStroke(BORDER);doc.setLineWidth(0.5);doc.line(margin,y,W-margin,y);y+=20;
+  // Pricing card
   setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
-  doc.rect(margin,y,contentW,80,'FD');
+  doc.rect(margin,y,contentW,90,'FD');
   setFill(ACCENT);doc.rect(margin,y,contentW,4,'F');
   var p2cols=[
-    [margin,'MONTHLY RETAINER',p2monthly,'Introductory rate — we prove the channel works, then grow from there.'],
-    [margin+contentW/3,'SCOPE','Full-channel ownership','Meta ads · Email · CRO · Analytics'],
+    [margin,'MONTHLY RETAINER',p2monthly,'Introductory rate \u2014 we come in, prove the channel works, and grow from there.'],
+    [margin+contentW/3,'SCOPE','Full-channel ownership','Meta ads \u00B7 Email \u00B7 CRO \u00B7 Analytics'],
     [margin+contentW*2/3,'COMMITMENT',p2commitment,'Then rolling monthly from there.'],
   ];
   p2cols.forEach(function(pc,i){
-    if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+80);}
-    doc.setFont('helvetica','bold');doc.setFontSize(7);setTextColor(MUTED);
-    doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
-    var valSize=i===0?16:11;
-    doc.setFont('helvetica','bold');doc.setFontSize(valSize);setTextColor(INK);
-    var valLines=doc.splitTextToSize(pc[2],contentW/3-32);
-    doc.text(valLines,pc[0]+16,y+40);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor(MUTED);
-    var nlines=doc.splitTextToSize(pc[3],contentW/3-32);
-    doc.text(nlines,pc[0]+16,y+56);
+    if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+90);}
+    doc.setFont('helvetica','bold');doc.setFontSize(7);setColor(MUTED);
+    doc.text(pc[1],pc[0]+16,y+20,{charSpace:0.8});
+    var vSz=i===0?16:12;
+    doc.setFont('helvetica','bold');doc.setFontSize(vSz);setColor(INK);
+    var vl=doc.splitTextToSize(pc[2],contentW/3-32);doc.text(vl,pc[0]+16,y+42);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);setColor(MUTED);
+    var nl=doc.splitTextToSize(pc[3],contentW/3-32);doc.text(nl,pc[0]+16,y+62);
   });
 
   // ── PAGE 5: PARTNERSHIP ───────────────────────────────────
-  doc.addPage(); y=margin;
+  doc.addPage();y=80;
   y=sectionHeader('The Partnership',"We don't hand things over. We stay in it.",y);
-  y=bodyText("Phase 1 builds the foundation. Phase 2 is where we take ownership of the channel and keep building — continuously optimizing, testing, and improving across every area. This is a long-term partnership, not a project handoff.",margin,y,contentW);
-  y+=16;
-
-  var colH=220; var colW2=contentW/2-4;
-  // Left col (cream) — Phase 1
+  y=bodyText("Phase 1 builds the foundation. Phase 2 is where we take ownership of the channel and keep building \u2014 continuously optimizing, testing, and improving across every area. This is a long-term partnership, not a project handoff.",margin,y,contentW);
+  y+=20;
+  var colW2=contentW/2-4,colH=240;
+  // Left col (cream)
   setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
   doc.rect(margin,y,colW2,colH,'FD');
   setFill(BORDER);doc.rect(margin,y,colW2,3,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setTextColor(INK);
-  doc.text('Phase 1',margin+14,y+18);
-  doc.setFont('helvetica','bold');doc.setFontSize(7.5);setTextColor(MUTED);
-  doc.text('WHAT WE BUILD TOGETHER',margin+14,y+32,{charSpace:0.5});
-  var p1items=[
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setColor(INK);
+  doc.text('Phase 1',margin+14,y+20);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor(MUTED);
+  doc.text('What we build together',margin+14,y+34);
+  var p1list=[
     ['Commercial Strategy & P&L','Pricing architecture and bundles built to maximize AOV/LTV.'],
-    ['Shopify Store Build','Full conversion-optimized site build.'],
-    ['Email Automation','Welcome to win-back — fully automated.'],
+    ['Store Build','Full conversion-optimized site build.'],
+    ['Email Automation Stack','Welcome, abandon, post-purchase, win-back flows.'],
     ['Technical Foundation','SEO, analytics, Search Console.'],
-    ['Subscription & Upsell','Integrations and post-purchase flows.'],
+    ['Attomik AI Tools Access','Full access to our marketing OS and insights dashboard from day one.'],
   ];
-  var iy=y+48;
-  p1items.forEach(function(item){
-    doc.setFont('helvetica','bold');doc.setFontSize(9);setTextColor(INK);
-    doc.text(item[0],margin+14,iy); iy+=12;
-    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor(MUTED);
-    var ls=doc.splitTextToSize(item[1],colW2-28);
-    doc.text(ls,margin+14,iy); iy+=ls.length*11+7;
+  var iy=y+52;
+  p1list.forEach(function(item){
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);setColor(INK);
+    doc.text(item[0],margin+14,iy);iy+=12;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor(MUTED);
+    var ls=doc.splitTextToSize(item[1],colW2-28);doc.text(ls,margin+14,iy);iy+=ls.length*10+8;
   });
-
-  // Right col (dark) — Ongoing
+  // Right col (dark)
   var rx=margin+colW2+8;
   setFill(INK);doc.rect(rx,y,colW2,colH,'F');
   setFill(ACCENT);doc.rect(rx,y,colW2,3,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setTextColor(PAPER);
-  doc.text('Ongoing',rx+14,y+18);
-  doc.setFont('helvetica','bold');doc.setFontSize(7.5);setTextColor([120,120,120]);
-  doc.text('HOW WE DRIVE GROWTH',rx+14,y+32,{charSpace:0.5});
-  var p2items2=[
-    ['Paid Social — Meta','Weekly strategy, creative direction, full optimization.'],
-    ['Email & Retention','Ongoing campaigns, flows, segmentation.'],
-    ['Performance Reporting','CAC, AOV, LTV, ROAS — always visible.'],
-    ['CRO & Landing Pages','Continuous improvements and offer testing.'],
-    ['Ongoing Ecom Support','Strategy, site, product — true partner.'],
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);setColor(PAPER);
+  doc.text('Ongoing',rx+14,y+20);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor([120,120,120]);
+  doc.text('How we drive growth',rx+14,y+34);
+  var p2list=[
+    ['Paid Social \u2014 Meta','Weekly strategy, creative direction, full campaign optimization across the funnel.'],
+    ['Email & Retention','Ongoing campaigns, segmentation refinements, and flow optimization to drive repeat revenue.'],
+    ['Performance Reporting','Real-time visibility on CAC, AOV, LTV, and channel ROAS.'],
+    ['CRO & Landing Pages','Continuous site improvements, new landing pages, and offer testing.'],
+    ['Ongoing Ecom Support','We stay across every part \u2014 strategy, site, product, and positioning \u2014 as a true partner.'],
   ];
-  iy=y+48;
-  p2items2.forEach(function(item){
-    doc.setFont('helvetica','bold');doc.setFontSize(9);setTextColor(PAPER);
-    doc.text(item[0],rx+14,iy); iy+=12;
-    doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor([160,160,160]);
-    var ls=doc.splitTextToSize(item[1],colW2-28);
-    doc.text(ls,rx+14,iy); iy+=ls.length*11+7;
+  iy=y+52;
+  p2list.forEach(function(item){
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);setColor(PAPER);
+    doc.text(item[0],rx+14,iy);iy+=12;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor([160,160,160]);
+    var ls=doc.splitTextToSize(item[1],colW2-28);doc.text(ls,rx+14,iy);iy+=ls.length*10+8;
   });
-  y+=colH+22;
-
+  y+=colH+28;
   // Closing
-  doc.setFont('helvetica','bold');doc.setFontSize(12);setTextColor(INK);
-  var closing=clientName+' has real potential in this channel — the product is strong and the timing is right. We\'d love to be the team that helps build it properly.';
+  doc.setFont('helvetica','bold');doc.setFontSize(11);setColor(INK);
+  var closing=clientName+' has real potential in this channel \u2014 the product is strong and the timing is right. We\'d love to be the team that helps build it properly.';
   var closingLines=doc.splitTextToSize(closing,contentW);
-  doc.text(closingLines,margin,y); y+=closingLines.length*17+10;
-  doc.setFont('helvetica','normal');doc.setFontSize(10);setTextColor(MUTED);
-  doc.text("Let's talk — happy to walk through everything on a call.",margin,y);
+  doc.text(closingLines,margin,y);y+=closingLines.length*16+12;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);setColor(MUTED);
+  doc.text("Let's talk \u2014 happy to walk through everything on a call.",margin,y);
 
   // ── Page chrome (pages 2-5) ───────────────────────────────
   var totalPages=doc.getNumberOfPages();
   for(var pg=2;pg<=totalPages;pg++){
     doc.setPage(pg);
-    // Logo top left
-    try{doc.addImage(LOGO_BLACK_B64,'PNG',margin,22,65,65*(909/3162));}catch(e){}
-    // Footer line
+    drawLogoMark(margin,22,1.3,INK);
     setStroke(BORDER);doc.setLineWidth(0.5);
     doc.line(margin,H-36,W-margin,H-36);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setTextColor([153,153,153]);
-    doc.text('Confidential — Prepared by Attomik',margin,H-24);
-    doc.text('Page '+(pg-1),W-margin,H-24,{align:'right'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor([153,153,153]);
+    doc.text('Confidential \u2014 Prepared by Attomik',margin,H-24);
+    doc.text('Page '+pg,W-margin,H-24,{align:'right'});
   }
 
   // ── Save ──────────────────────────────────────────────────
-  var filename='Attomik_Proposal_'+clientName.replace(/\s+/g,'_')+'_'+new Date().getFullYear()+'.pdf';
+  var filename='Attomik_Proposal_'+clientName.replace(/\s+/g,'_')+'_'+now.getFullYear()+'.pdf';
   doc.save(filename);
-  toast('PDF downloaded ✓','success');
+  toast('PDF downloaded','success');
 }
 
 // ── INIT ──────────────────────────────────────────────────────
