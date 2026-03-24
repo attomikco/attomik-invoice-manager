@@ -2648,7 +2648,7 @@ function downloadProposalPDF(){
   var totalPages=doc.getNumberOfPages();
   for(var pg=2;pg<=totalPages;pg++){
     doc.setPage(pg);
-    try{doc.addImage(LOGO_BLACK_B64,'PNG',margin,18,75,75*(909/3162));}catch(e){}
+    try{doc.addImage(LOGO_BLACK_B64,'PNG',margin,40,100,100*(909/3162));}catch(e){}
     setStroke(BORDER);doc.setLineWidth(0.5);
     doc.line(margin,H-36,W-margin,H-36);
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor([153,153,153]);
