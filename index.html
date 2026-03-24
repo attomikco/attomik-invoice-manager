@@ -1927,8 +1927,8 @@ function genPropNumber(){
 }
 
 function propTotalOf(prop){
-  var p1=parseFloat((prop.phase1Price||'').replace(/[^0-9.]/g,''))||0;
-  var p2=parseFloat((prop.phase2Monthly||'').replace(/[^0-9.]/g,''))||0;
+  var p1=parseFloat(String(prop.phase1Price||'').replace(/[^0-9.]/g,''))||0;
+  var p2=parseFloat(String(prop.phase2Monthly||'').replace(/[^0-9.]/g,''))||0;
   var months=parseInt(prop.phase2Commitment)||0;
   return p1+(p2*months);
 }
@@ -1944,9 +1944,9 @@ function renderProposalsPage(){
   var declined=proposals.filter(function(p){return p.status==='declined';});
   var decided=accepted.length+declined.length;
   var winRate=decided>0?Math.round((accepted.length/decided)*100)+'%':'—';
-  var p1pipeline=open.reduce(function(s,p){return s+(parseFloat((p.phase1Price||'').replace(/[^0-9.]/g,''))||0);},0);
+  var p1pipeline=open.reduce(function(s,p){return s+(parseFloat(String(p.phase1Price||'').replace(/[^0-9.]/g,''))||0);},0);
   var p2pipeline=open.reduce(function(s,p){
-    var monthly=parseFloat((p.phase2Monthly||'').replace(/[^0-9.]/g,''))||0;
+    var monthly=parseFloat(String(p.phase2Monthly||'').replace(/[^0-9.]/g,''))||0;
     var months=parseInt(p.phase2Commitment)||0;
     return s+(monthly*months);
   },0);
