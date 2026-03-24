@@ -2420,8 +2420,8 @@ function downloadProposalPDF(){
 
   function sectionHeader(labelText,headlineText,y){
     accentBar(y);
-    y+=14;
-    label(labelText,margin,y); y+=14;
+    y+=18;
+    label(labelText,margin,y); y+=22;
     doc.setFont('helvetica','bold');doc.setFontSize(22);
     setTextColor(INK);
     doc.text(headlineText,margin,y); y+=32;
@@ -2463,16 +2463,16 @@ function downloadProposalPDF(){
   doc.text('Prepared for '+clientName+' · '+today+' · Confidential',margin,H-20);
   doc.text('attomik.co',W-margin,H-20,{align:'right'});
   // White logo
-  try{doc.addImage(LOGO_WHITE_B64,'PNG',margin,H*0.58,130,130*(909/3162));}catch(e){}
+  try{doc.addImage(LOGO_WHITE_B64,'PNG',margin,H*0.38,130,130*(909/3162));}catch(e){}
   // Headline
   doc.setFont('helvetica','bold');doc.setFontSize(38);
   setTextColor(PAPER);
-  doc.text('Ecommerce Growth',margin,H*0.50);
-  doc.text('Proposal',margin,H*0.50+48);
+  doc.text('Ecommerce Growth',margin,H*0.48);
+  doc.text('Proposal',margin,H*0.48+48);
   // Client name
   doc.setFont('helvetica','bold');doc.setFontSize(13);
   setTextColor(ACCENT);
-  doc.text('Prepared for '+clientName,margin,H*0.50+86);
+  doc.text('Prepared for '+clientName,margin,H*0.48+86);
 
   // ── PAGE 2: OUR APPROACH ──────────────────────────────────
   doc.addPage();
@@ -2574,9 +2574,11 @@ function downloadProposalPDF(){
     doc.setFont('helvetica','bold');doc.setFontSize(7);
     setTextColor(MUTED);
     doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
-    doc.setFont('helvetica','bold');doc.setFontSize(i===2?13:18);
+    var pSize=i===0?18:i===1?16:12;
+    doc.setFont('helvetica','bold');doc.setFontSize(pSize);
     setTextColor(INK);
-    doc.text(pc[2],pc[0]+16,y+44);
+    var pLines=doc.splitTextToSize(pc[2],contentW/3-32);
+    doc.text(pLines,pc[0]+16,y+44);
   });
   y+=88;
   doc.setFont('helvetica','normal');doc.setFontSize(8.5);
@@ -2599,9 +2601,7 @@ function downloadProposalPDF(){
     ['Site & Landing Pages','Continuous CRO improvements, new landing pages, and offer testing as the channel scales.'],
   ];
   phase2items.forEach(function(item){
-    doc.setFont('helvetica','bold');doc.setFontSize(11);
-    setTextColor(ACCENT);
-    doc.text('→',margin,y);
+    setFill(ACCENT);doc.circle(margin+3,y-3,3,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(10.5);
     setTextColor(INK);
     doc.text(item[0],margin+18,y);
@@ -2628,8 +2628,10 @@ function downloadProposalPDF(){
     if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+80);}
     doc.setFont('helvetica','bold');doc.setFontSize(7);setTextColor(MUTED);
     doc.text(pc[1],pc[0]+16,y+18,{charSpace:0.8});
-    doc.setFont('helvetica','bold');doc.setFontSize(16);setTextColor(INK);
-    doc.text(pc[2],pc[0]+16,y+40);
+    var valSize=i===0?16:11;
+    doc.setFont('helvetica','bold');doc.setFontSize(valSize);setTextColor(INK);
+    var valLines=doc.splitTextToSize(pc[2],contentW/3-32);
+    doc.text(valLines,pc[0]+16,y+40);
     doc.setFont('helvetica','normal');doc.setFontSize(8);setTextColor(MUTED);
     var nlines=doc.splitTextToSize(pc[3],contentW/3-32);
     doc.text(nlines,pc[0]+16,y+56);
