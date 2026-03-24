@@ -480,11 +480,10 @@ textarea{resize:vertical;min-height:80px;}
         </select>
       </div>
     </div>
-    <div class="section-title">Client</div>
+    <div class="section-title">Prospect</div>
     <div class="form-grid">
-      <div class="form-group"><label>Saved Client</label><select id="prop-client-select" onchange="prefillProposalClient()"><option value="">— enter manually —</option></select></div>
-      <div class="form-group"><label>Client Name</label><input type="text" id="prop-client-name" placeholder="Jane Doe"/></div>
-      <div class="form-group"><label>Client Email</label><input type="email" id="prop-client-email" placeholder="jane@company.com"/></div>
+      <div class="form-group"><label>Name</label><input type="text" id="prop-client-name" placeholder="Jane Doe"/></div>
+      <div class="form-group"><label>Email</label><input type="email" id="prop-client-email" placeholder="jane@company.com"/></div>
       <div class="form-group"><label>Company</label><input type="text" id="prop-client-company" placeholder="Company Inc."/></div>
     </div>
     <div class="section-title">Intro Message</div>
@@ -2023,7 +2022,7 @@ function openNewProposal(){
   document.getElementById('prop-p2-commitment').value='3-month minimum';
   document.getElementById('prop-notes').value=settings.terms||DEFAULT_TERMS||'';
   ['prop-client-name','prop-client-email','prop-client-company'].forEach(function(id){document.getElementById(id).value='';});
-  populatePropClientDropdown();
+
   document.getElementById('prop-line-items').innerHTML='';
   addProposalLineItem();
   updateProposalTotal();
@@ -2052,7 +2051,7 @@ function editProposal(id){
   document.getElementById('prop-client-name').value=prop.clientName||'';
   document.getElementById('prop-client-email').value=prop.clientEmail||'';
   document.getElementById('prop-client-company').value=prop.clientCompany||'';
-  populatePropClientDropdown();
+
   var csel=document.getElementById('prop-client-select');
   var match=clients.find(function(c){return c.email===prop.clientEmail;});
   if(match&&csel){for(var i=0;i<csel.options.length;i++){if(csel.options[i].value===match.id){csel.selectedIndex=i;break;}}}
@@ -2077,7 +2076,7 @@ function duplicateProposal(id){
   document.getElementById('prop-client-name').value=orig.clientName||'';
   document.getElementById('prop-client-email').value=orig.clientEmail||'';
   document.getElementById('prop-client-company').value=orig.clientCompany||'';
-  populatePropClientDropdown();
+
   document.getElementById('prop-line-items').innerHTML='';
   (orig.items||[]).forEach(function(it){addProposalLineItem(it);});
   updateProposalTotal();
@@ -2091,26 +2090,6 @@ async function deleteProposal(id){
   if(scriptUrl){try{await api('deleteProposal',{id:id});}catch(e){console.error('Proposal delete sync error:',e);}}
   renderProposalsPage();
   toast('Proposal deleted');
-}
-
-function populatePropClientDropdown(){
-  var sel=document.getElementById('prop-client-select');
-  sel.innerHTML='<option value="">— enter manually —</option>';
-  clients.forEach(function(c){
-    var o=document.createElement('option');
-    o.value=c.id;
-    o.textContent=c.name+(c.company?' ('+c.company+')':'');
-    sel.appendChild(o);
-  });
-}
-
-function prefillProposalClient(){
-  var c=clients.find(function(cl){return cl.id===document.getElementById('prop-client-select').value;});
-  if(!c) return;
-  var emails=Array.isArray(c.emails)?c.emails:(c.email?[c.email]:[]);
-  document.getElementById('prop-client-name').value=c.name;
-  document.getElementById('prop-client-email').value=emails[0]||'';
-  document.getElementById('prop-client-company').value=c.company||'';
 }
 
 function addProposalLineItem(item){
