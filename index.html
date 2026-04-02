@@ -398,7 +398,7 @@ textarea{resize:vertical;min-height:80px;}
       <button class="btn btn-primary" onclick="openClientModal()"><i class="fa-solid fa-plus"></i> Add Client</button>
     </div>
     <div class="table-wrap" style="overflow-x:auto;">
-      <table><thead><tr><th>Name</th><th>Emails</th><th>Company</th><th>Invoices</th><th>Actions</th></tr></thead>
+      <table><thead><tr><th>Name</th><th>Status</th><th>Emails</th><th>Company</th><th>Invoices</th><th>Actions</th></tr></thead>
       <tbody id="clients-table-body"></tbody></table>
       <div class="empty-state" id="clients-empty"><div class="empty-icon">◯</div><p>No clients yet.</p></div>
     </div>
@@ -580,6 +580,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="modal-header"><div class="modal-title" id="client-modal-title">Add Client</div><button class="modal-close" onclick="closeModal('client-modal')">✕</button></div>
     <div class="form-grid" style="margin-bottom:16px">
       <div class="form-group"><label>Name</label><input type="text" id="c-name" placeholder="Jane Doe"/></div>
+      <div class="form-group"><label>Status</label><select id="c-status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
       <div class="form-group full"><label>Company</label><input type="text" id="c-company" placeholder="Company Inc."/></div>
       <div class="form-group full"><label>Address</label><textarea id="c-address" placeholder="594 Broadway, Suite 702&#10;New York, NY 10012" style="min-height:60px;resize:vertical;"></textarea></div>
     </div>
@@ -1404,7 +1405,7 @@ async function deleteInvoice(id){
 function populateClientDropdown(){
   var sel=document.getElementById('inv-client-select');
   sel.innerHTML='<option value="">— enter manually —</option>';
-  var sortedClients=[].concat(clients).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+  var sortedClients=[].concat(clients).filter(function(c){return (c.status||'active')==='active';}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
   sortedClients.forEach(function(c){
     var o=document.createElement('option');
     o.value=c.id;
@@ -1558,7 +1559,12 @@ function printInvoice(){
     +'div[style*="flex-direction:column"]{display:flex;flex-direction:column;gap:5px;}';
   var win=window.open('','_blank','width=900,height=1200');
   if(!win){alert('Please allow popups for this site to print invoices.');return;}
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>'+css+'</style></head><body>'+content.innerHTML+'</body></html>');
+  var inv=previewingInvoice;
+  var pdfName=inv.number||'Invoice';
+  var pdfClient=inv.clientCompany||inv.clientName||'';
+  if(pdfClient) pdfName+=' - '+pdfClient;
+  if(inv.date){var _d=parseLocalDate(inv.date);if(_d){var mm=String(_d.getMonth()+1).padStart(2,'0');var yy=String(_d.getFullYear()).slice(-2);pdfName+=' '+mm+'/'+yy;}}
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>'+pdfName+'</title><style>'+css+'</style></head><body>'+content.innerHTML+'</body></html>');
   win.document.close();
   win.onload=function(){win.focus();win.print();};
 }
@@ -1725,7 +1731,8 @@ function openGmailSend(){
   renderCcTags();
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
-  document.getElementById('gmail-subject').value='Invoice '+inv.number+' — Attomik Services';
+  var subjectClient=inv.clientCompany||inv.clientName||'';
+  document.getElementById('gmail-subject').value='Invoice '+inv.number+' — Attomik Services'+(subjectClient?' ('+subjectClient+')':'');
   document.getElementById('gmail-body').value='Hi Team,\n\nPlease find attached invoice '+inv.number+' for Attomik Services due on '+fmtDate(inv.due)+'.\n\nBest,\n'+(s.brandName||s.name||'Attomik')+'\n'+(s.email||'hello@attomik.co');
   closeModal('preview-modal');openModal('gmail-modal');
 }
@@ -1735,7 +1742,7 @@ async function sendViaGmail(){
   var cc=encodeURIComponent(ccEmails.join(','));
   var su=encodeURIComponent(document.getElementById('gmail-subject').value);
   var bo=encodeURIComponent(document.getElementById('gmail-body').value);
-  var url='https://mail.google.com/mail/?view=cm&to='+to+'&su='+su+'&body='+bo;
+  var url='https://mail.google.com/mail/?view=cm&from='+encodeURIComponent('hello@attomik.co')+'&to='+to+'&su='+su+'&body='+bo;
   if(ccEmails.length) url+='&cc='+cc;
   window.open(url,'_blank');
   if(previewingInvoice&&previewingInvoice.status==='draft'){
@@ -1792,11 +1799,13 @@ function openClientModal(id){
     document.getElementById('c-company').value=_company;
     document.getElementById('c-address').value=_address;
     document.getElementById('c-payment-terms').value=_paymentTerms;
+    document.getElementById('c-status').value=c.status||'active';
     clientEmails=_emails;
   } else {
     document.getElementById('c-name').value='';
     document.getElementById('c-company').value='';
     document.getElementById('c-address').value='';
+    document.getElementById('c-status').value='active';
     document.getElementById('c-payment-terms').value=DEFAULT_TERMS||'Thank you for your business! Payment is due within 15 days of the invoice date. Please make payments via the methods provided in the invoice. Late payments may be subject to a 5% late fee per month.';
   }
   renderClientEmailTags();
@@ -1815,6 +1824,7 @@ async function saveClient(){
     company:document.getElementById('c-company').value,
     address:document.getElementById('c-address').value,
     paymentTerms:document.getElementById('c-payment-terms').value,
+    status:document.getElementById('c-status').value||'active',
     createdAt:new Date().toISOString()
   };
   if(editingClientId){
@@ -1851,8 +1861,14 @@ function renderClientsTable(){
     var company=(c.company||'');
     if(company[0]==='['||company[0]==='"') company='';
     var emailTags=emailList.map(function(e){return '<span style="display:inline-block;background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:2px 8px;margin:1px;font-size:.75rem;">'+e+'</span>';}).join('');
+    var status=c.status||'active';
+    var statusBadge=status==='active'
+      ?'<span style="display:inline-block;background:#e6f4ea;color:#1e7e34;border-radius:12px;padding:2px 10px;font-size:.75rem;font-weight:600;">Active</span>'
+      :'<span style="display:inline-block;background:#fce8e6;color:#c5221f;border-radius:12px;padding:2px 10px;font-size:.75rem;font-weight:600;">Inactive</span>';
     var tr=document.createElement('tr');
+    if(status==='inactive') tr.style.opacity='0.6';
     tr.innerHTML='<td style="font-weight:600">'+c.name+'</td>'
+      +'<td>'+statusBadge+'</td>'
       +'<td>'+emailTags+'</td>'
       +'<td>'+(company||'—')+'</td>'
       +'<td>'+invoices.filter(function(i){return i.clientEmail===c.email;}).length+'</td>'
