@@ -1731,7 +1731,7 @@ function openGmailSend(){
   renderCcTags();
   document.getElementById('cc-input').value='';
   document.getElementById('gmail-to').value=inv.clientEmail||'';
-  var subjectClient=inv.clientCompany||inv.clientName||'';
+  var subjectClient=inv.clientName||inv.clientCompany||'';
   document.getElementById('gmail-subject').value='Invoice '+inv.number+' — Attomik Services'+(subjectClient?' ('+subjectClient+')':'');
   document.getElementById('gmail-body').value='Hi Team,\n\nPlease find attached invoice '+inv.number+' for Attomik Services due on '+fmtDate(inv.due)+'.\n\nBest,\n'+(s.brandName||s.name||'Attomik')+'\n'+(s.email||'hello@attomik.co');
   closeModal('preview-modal');openModal('gmail-modal');
