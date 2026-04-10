@@ -2331,7 +2331,7 @@ function previewProposal(id){
     +'<div class="pp-pricing">'
       +'<div class="pp-pricing-col"><small>MONTHLY RETAINER</small><strong>'+p2monthly+'</strong><div class="sub"><span style="text-decoration:line-through;color:#999;">$5,000 / mo</span> · Early-stage rate</div></div>'
       +'<div class="pp-pricing-col sm"><small>SCOPE</small><strong>Full-channel ownership</strong><div class="sub">Meta ads · Email · CRO · Analytics</div></div>'
-      +'<div class="pp-pricing-col sm"><small>MINIMUM</small><strong>'+p2commitment+'</strong><div class="sub">Rolling monthly after that — cancel anytime.</div></div>'
+      +'<div class="pp-pricing-col sm"><small>TERMS</small><strong>Month-by-month</strong><div class="sub">Cancel anytime.</div></div>'
     +'</div>'
     +pgBot
   +'</div>';
@@ -2646,7 +2646,7 @@ function downloadProposalPDF(){
   var p2cols=[
     [margin,'MONTHLY RETAINER',p2monthly,'$5,000 / mo  \u2014  Early-stage rate'],
     [margin+contentW/3,'SCOPE','Full-channel ownership','Meta ads \u00B7 Email \u00B7 CRO \u00B7 Analytics'],
-    [margin+contentW*2/3,'MINIMUM',p2commitment,'Rolling monthly after that \u2014 cancel anytime.'],
+    [margin+contentW*2/3,'TERMS','Month-by-month','Cancel anytime.'],
   ];
   p2cols.forEach(function(pc,i){
     if(i>0){setStroke(BORDER);doc.setLineWidth(0.5);doc.line(pc[0],y+4,pc[0],y+90);}
