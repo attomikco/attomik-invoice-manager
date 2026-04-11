@@ -2596,33 +2596,33 @@ function downloadProposalPDF(){
   }
   function scopeSection(inItems,outItems,y){
     var colW=contentW/2-6;
-    var rowH=10;
-    var inH=inItems.length*rowH+32;
-    var outH=outItems.length*rowH+32;
+    var rowH=13;
+    var inH=inItems.length*rowH+34;
+    var outH=outItems.length*rowH+34;
     var boxH=Math.max(inH,outH);
     // IN box
     setFill([245,255,250]);setStroke([0,200,120]);doc.setLineWidth(0.5);
     doc.rect(margin,y,colW,boxH,'FD');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);setColor([0,160,90]);
-    doc.text('INCLUDED',margin+12,y+16,{charSpace:0.8});
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor(INK);
-    var iy2=y+28;
+    doc.setFont('helvetica','bold');doc.setFontSize(8);setColor([0,160,90]);
+    doc.text('INCLUDED',margin+12,y+18,{charSpace:0.8});
+    doc.setFont('helvetica','normal');doc.setFontSize(9);setColor(INK);
+    var iy2=y+32;
     inItems.forEach(function(item){
-      setFill([0,200,120]);doc.circle(margin+12,iy2-3,1.5,'F');
-      var lines=doc.splitTextToSize(item,colW-26);
+      setFill([0,200,120]);doc.circle(margin+12,iy2-3,2,'F');
+      var lines=doc.splitTextToSize(item,colW-28);
       doc.text(lines,margin+20,iy2);iy2+=lines.length*rowH;
     });
     // OUT box
     var ox=margin+colW+12;
     setFill([255,252,252]);setStroke(BORDER);doc.setLineWidth(0.5);
     doc.rect(ox,y,colW,boxH,'FD');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);setColor(MUTED);
-    doc.text('NOT INCLUDED',ox+12,y+16,{charSpace:0.8});
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);setColor(MUTED);
-    iy2=y+28;
+    doc.setFont('helvetica','bold');doc.setFontSize(8);setColor(MUTED);
+    doc.text('NOT INCLUDED',ox+12,y+18,{charSpace:0.8});
+    doc.setFont('helvetica','normal');doc.setFontSize(9);setColor(MUTED);
+    iy2=y+32;
     outItems.forEach(function(item){
-      setFill(BORDER);doc.circle(ox+12,iy2-3,1.5,'F');
-      var lines=doc.splitTextToSize(item,colW-26);
+      setFill(BORDER);doc.circle(ox+12,iy2-3,2,'F');
+      var lines=doc.splitTextToSize(item,colW-28);
       doc.text(lines,ox+20,iy2);iy2+=lines.length*rowH;
     });
     return y+boxH+16;
@@ -2732,18 +2732,18 @@ function downloadProposalPDF(){
     ['Technical Foundation',['· SEO & AI SEO setup','· Analytics & Search Console','· Performance optimized']],
     ['Attomik AI Tools Access',['· AI dashboard & insights platform','· Marketing OS — all channels in one view','· Real-time performance intelligence']],
   ];
-  var tileW=contentW/2-6,tileH=68;
+  var tileW=contentW/2-6,tileH=82;
   deliverables.forEach(function(d,i){
     var col=i%2,row=Math.floor(i/2);
     var tx=margin+col*(tileW+12),ty=y+row*(tileH+8);
     setFill(CREAM);setStroke(BORDER);doc.setLineWidth(0.5);
     doc.rect(tx,ty,tileW,tileH,'FD');
     setFill(ACCENT);doc.rect(tx,ty,tileW,2.5,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(9.5);setColor(INK);
-    doc.text(d[0],tx+10,ty+15);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);setColor(MUTED);
-    var by=ty+27;
-    d[1].forEach(function(b){doc.text(b,tx+10,by);by+=11;});
+    doc.setFont('helvetica','bold');doc.setFontSize(10);setColor(INK);
+    doc.text(d[0],tx+12,ty+18);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);setColor(MUTED);
+    var by=ty+33;
+    d[1].forEach(function(b){doc.text(b,tx+12,by);by+=13;});
   });
   y+=Math.ceil(deliverables.length/2)*(tileH+8)+12;
 
