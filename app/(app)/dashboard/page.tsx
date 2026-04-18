@@ -1,74 +1,98 @@
 import { createClient } from "@/lib/supabase/server";
-import { currency, invoiceTotal, type LineItem } from "@/lib/format";
+import {
+  currency,
+  dateShort,
+  invoiceTotal,
+  type LineItem,
+} from "@/lib/format";
 import MRRChart from "./mrr-chart";
 
 type Invoice = {
   id: string;
   number: string | null;
   date: string | null;
+  due: string | null;
   status: string | null;
   client_name: string | null;
+  client_email: string | null;
   items: LineItem[] | null;
   discount: number | null;
 };
 
-type PipelineContact = {
-  id: string;
-  name: string | null;
-  company: string | null;
-  status: string | null;
-  monthly_value: number | null;
+type Settings = {
+  brand_name?: string;
+  payment_instructions?: string;
+  currency?: string;
 };
+
+function parseDate(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function invoiceNumberInt(n: string | null): number {
+  if (!n) return 0;
+  const m = /\d+/.exec(n);
+  return m ? parseInt(m[0], 10) : 0;
+}
 
 export default async function DashboardPage() {
   const supabase = createClient();
 
-  const [{ data: invoices }, { data: pipeline }] = await Promise.all([
+  const [{ data: invData }, { data: stgData }] = await Promise.all([
     supabase
       .from("invoices")
-      .select("id, number, date, status, client_name, items, discount")
+      .select(
+        "id, number, date, due, status, client_name, client_email, items, discount",
+      )
       .order("date", { ascending: false })
-      .limit(200),
-    supabase
-      .from("pipeline_contacts")
-      .select("id, name, company, status, monthly_value")
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(500),
+    supabase.from("settings").select("key, value"),
   ]);
 
-  const allInvoices: Invoice[] = (invoices as Invoice[] | null) ?? [];
-  const pipelineContacts: PipelineContact[] =
-    (pipeline as PipelineContact[] | null) ?? [];
+  const invoices: Invoice[] = (invData as Invoice[] | null) ?? [];
 
-  const paidInvoices = allInvoices.filter((i) => i.status === "paid");
-  const outstandingInvoices = allInvoices.filter(
-    (i) => i.status !== "paid" && i.status !== "draft",
-  );
-
-  const totalRevenue = paidInvoices.reduce(
-    (sum, i) => sum + invoiceTotal(i.items, i.discount),
-    0,
-  );
-  const outstanding = outstandingInvoices.reduce(
-    (sum, i) => sum + invoiceTotal(i.items, i.discount),
-    0,
-  );
+  const settings: Settings = {};
+  for (const row of (stgData as { key: string; value: string }[] | null) ??
+    []) {
+    (settings as Record<string, string>)[row.key] = row.value;
+  }
+  const currencyCode = settings.currency || "USD";
 
   const now = new Date();
-  const currentMonth = now.toISOString().slice(0, 7);
-  const mrr = paidInvoices
-    .filter((i) => i.date && i.date.startsWith(currentMonth))
-    .reduce((sum, i) => sum + invoiceTotal(i.items, i.discount), 0);
+  const thisYear = now.getFullYear();
 
+  const yearInvoices = invoices.filter((i) => {
+    const d = parseDate(i.date);
+    return d && d.getFullYear() === thisYear;
+  });
+
+  const paidInv = yearInvoices.filter((i) => i.status === "paid");
+  const outstandingInv = yearInvoices.filter(
+    (i) => i.status === "sent" || i.status === "overdue",
+  );
+  const draftInv = yearInvoices.filter((i) => i.status === "draft");
+
+  const total = (list: Invoice[]) =>
+    list.reduce((s, i) => s + invoiceTotal(i.items, i.discount), 0);
+
+  const statInvoiced = total([...paidInv, ...outstandingInv]);
+  const statPaid = total(paidInv);
+  const statOutstanding = total(outstandingInv);
+  const statPipeline = total(draftInv);
+
+  // ── MRR by month (non-draft) ──────────────────────────────────────
   const mrrByMonth = new Map<string, number>();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = d.toISOString().slice(0, 7);
+  for (let m = 0; m < 12; m++) {
+    const key = `${thisYear}-${String(m + 1).padStart(2, "0")}`;
     mrrByMonth.set(key, 0);
   }
-  for (const inv of paidInvoices) {
-    if (!inv.date) continue;
-    const key = inv.date.slice(0, 7);
+  for (const inv of yearInvoices) {
+    if (inv.status === "draft") continue;
+    const d = parseDate(inv.date);
+    if (!d) continue;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     if (mrrByMonth.has(key)) {
       mrrByMonth.set(
         key,
@@ -76,25 +100,107 @@ export default async function DashboardPage() {
       );
     }
   }
-  const chartData = Array.from(mrrByMonth.entries()).map(([month, value]) => ({
+  const mrrData = Array.from(mrrByMonth.entries()).map(([month, value]) => ({
     month,
     value,
   }));
 
-  const activePipelineValue = pipelineContacts
-    .filter((c) => c.status === "active" || c.status === "warm")
-    .reduce((sum, c) => sum + Number(c.monthly_value ?? 0), 0);
+  // ── Aging ─────────────────────────────────────────────────────────
+  type Bucket = { key: string; label: string; amount: number; count: number };
+  const buckets: Bucket[] = [
+    { key: "current", label: "Current", amount: 0, count: 0 },
+    { key: "d30", label: "1–30 days", amount: 0, count: 0 },
+    { key: "d60", label: "31–60 days", amount: 0, count: 0 },
+    { key: "d90", label: "60+ days", amount: 0, count: 0 },
+  ];
+  for (const inv of outstandingInv) {
+    const due = parseDate(inv.due);
+    if (!due) continue;
+    const days = Math.floor((now.getTime() - due.getTime()) / 86_400_000);
+    const amt = invoiceTotal(inv.items, inv.discount);
+    const b =
+      days <= 0 ? buckets[0] : days <= 30 ? buckets[1] : days <= 60 ? buckets[2] : buckets[3];
+    b.amount += amt;
+    b.count += 1;
+  }
+  const agingTotal = buckets.reduce((s, b) => s + b.amount, 0);
 
-  const recentInvoices = allInvoices.slice(0, 6);
+  // ── Revenue by client (non-draft, this year) ──────────────────────
+  const clientTotals = new Map<string, number>();
+  for (const inv of yearInvoices) {
+    if (inv.status === "draft") continue;
+    const name = inv.client_name || "Unknown";
+    clientTotals.set(
+      name,
+      (clientTotals.get(name) ?? 0) + invoiceTotal(inv.items, inv.discount),
+    );
+  }
+  const topClients = Array.from(clientTotals, ([name, value]) => ({
+    name,
+    value,
+  }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+
+  // ── Revenue by service line item (non-draft, this year) ───────────
+  const serviceTotals = new Map<string, number>();
+  for (const inv of yearInvoices) {
+    if (inv.status === "draft") continue;
+    for (const it of inv.items ?? []) {
+      let name = String(it.title ?? it.description ?? "Other");
+      if (name.length > 30) name = `${name.slice(0, 30)}…`;
+      const qty = Number(it.qty ?? it.quantity ?? 1) || 0;
+      const rate = Number(it.rate ?? it.price ?? 0) || 0;
+      serviceTotals.set(name, (serviceTotals.get(name) ?? 0) + qty * rate);
+    }
+  }
+  const topServices = Array.from(serviceTotals, ([name, value]) => ({
+    name,
+    value,
+  }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+
+  // ── Draft pipeline (all drafts, sorted by number desc) ────────────
+  const drafts = invoices
+    .filter((i) => i.status === "draft")
+    .sort((a, b) => invoiceNumberInt(b.number) - invoiceNumberInt(a.number));
+
+  // ── Recent: last 10 invoices by date ──────────────────────────────
+  const recent = [...invoices]
+    .sort((a, b) => {
+      const da = parseDate(a.date)?.getTime() ?? 0;
+      const db = parseDate(b.date)?.getTime() ?? 0;
+      return db - da;
+    })
+    .slice(0, 10);
+
+  function buildMailto(inv: Invoice) {
+    if (!inv.client_email) return null;
+    const amount = currency(
+      invoiceTotal(inv.items, inv.discount),
+      currencyCode,
+    );
+    const subject = `Invoice ${inv.number ?? ""} · ${settings.brand_name ?? "Attomik"}`;
+    const body = [
+      `Hi${inv.client_name ? ` ${inv.client_name}` : ""},`,
+      "",
+      `Please find attached invoice ${inv.number ?? ""} for ${amount}.`,
+      `Due: ${dateShort(inv.due)}`,
+      "",
+      settings.payment_instructions ?? "",
+      "",
+      `Thanks,`,
+      settings.brand_name ?? "",
+    ].join("\n");
+    return `mailto:${inv.client_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
 
   return (
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div
-            className="label mono"
-            style={{ marginBottom: "var(--sp-2)" }}
-          >
+          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
             00 / Dashboard
           </div>
           <h1>Today.</h1>
@@ -110,180 +216,261 @@ export default async function DashboardPage() {
       </header>
 
       <section className="grid-4">
-        <KpiCard label="MRR" value={currency(mrr)} hint="this month" />
-        <KpiCard
-          label="Total revenue"
-          value={currency(totalRevenue)}
-          hint={`${paidInvoices.length} paid invoices`}
+        <Kpi
+          label="Invoiced"
+          value={currency(statInvoiced, currencyCode)}
+          hint={`${paidInv.length + outstandingInv.length} invoices · ${thisYear}`}
         />
-        <KpiCard
+        <Kpi
+          label="Paid"
+          value={currency(statPaid, currencyCode)}
+          hint={`${paidInv.length} paid`}
+        />
+        <Kpi
           label="Outstanding"
-          value={currency(outstanding)}
-          hint={`${outstandingInvoices.length} unpaid`}
+          value={currency(statOutstanding, currencyCode)}
+          hint={`${outstandingInv.length} unpaid`}
           accent
         />
-        <KpiCard
+        <Kpi
           label="Pipeline"
-          value={currency(activePipelineValue)}
-          hint={`${pipelineContacts.length} contacts`}
+          value={currency(statPipeline, currencyCode)}
+          hint={`${draftInv.length} drafts`}
         />
       </section>
 
       <div className="section-header">
         <div className="section-header-bar" />
-        <div className="section-header-title">Revenue · 12-month trend</div>
-        <div className="section-header-line" />
-      </div>
-
-      <section className="card">
-        <MRRChart data={chartData} />
-      </section>
-
-      <div className="section-header">
-        <div className="section-header-bar" />
-        <div className="section-header-title">Activity</div>
+        <div className="section-header-title">Revenue intelligence</div>
         <div className="section-header-line" />
       </div>
 
       <section className="grid-2">
-        <div className="card">
-          <div style={{ marginBottom: "var(--sp-5)" }}>
-            <div className="label mono">Pipeline</div>
-            <h2 style={{ marginTop: "var(--sp-1)" }}>Active &amp; warm</h2>
-          </div>
-          {pipelineContacts.length === 0 ? (
-            <div className="caption mono">No contacts yet</div>
-          ) : (
-            <ul style={{ listStyle: "none" }}>
-              {pipelineContacts.slice(0, 6).map((c, idx) => (
-                <li
-                  key={c.id}
-                  className="flex items-center justify-between"
-                  style={{
-                    padding: "var(--sp-3) 0",
-                    borderBottom:
-                      idx < pipelineContacts.slice(0, 6).length - 1
-                        ? "1px solid var(--border)"
-                        : "none",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "var(--text-base)",
-                        fontWeight: "var(--fw-medium)",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {c.name ?? "—"}
-                    </div>
-                    <div
-                      className="mono"
-                      style={{
-                        fontSize: "var(--fs-11)",
-                        letterSpacing: "var(--ls-wide)",
-                        textTransform: "uppercase",
-                        color: "var(--muted)",
-                        marginTop: "var(--sp-1)",
-                      }}
-                    >
-                      {c.company ?? ""}{" "}
-                      <span
-                        className={`badge status-${c.status ?? "draft"}`}
-                        style={{ marginLeft: "var(--sp-2)" }}
-                      >
-                        {c.status ?? "idea"}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    className="mono"
-                    style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: "var(--fw-semibold)",
-                    }}
-                  >
-                    {currency(Number(c.monthly_value ?? 0))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <DashboardCard
+          eyebrow="Revenue"
+          title="MRR · 12-month"
+        >
+          <MRRChart data={mrrData} />
+        </DashboardCard>
 
-        <div className="card">
-          <div style={{ marginBottom: "var(--sp-5)" }}>
-            <div className="label mono">Recent invoices</div>
-            <h2 style={{ marginTop: "var(--sp-1)" }}>Latest activity</h2>
+        <DashboardCard
+          eyebrow="Outstanding"
+          title="Aging"
+        >
+          <div className="flex-col" style={{ gap: "var(--sp-3)" }}>
+            {buckets.map((b, i) => (
+              <AgingRow
+                key={b.key}
+                label={b.label}
+                amount={b.amount}
+                count={b.count}
+                pct={agingTotal > 0 ? (b.amount / agingTotal) * 100 : 0}
+                severity={i}
+                currencyCode={currencyCode}
+              />
+            ))}
           </div>
-          {recentInvoices.length === 0 ? (
-            <div className="caption mono">No invoices yet</div>
-          ) : (
-            <ul style={{ listStyle: "none" }}>
-              {recentInvoices.map((inv, idx) => (
+        </DashboardCard>
+
+        <DashboardCard
+          eyebrow="Ranked"
+          title="Revenue by client"
+        >
+          <RankedBarList
+            rows={topClients}
+            color="var(--accent)"
+            currencyCode={currencyCode}
+            empty="No revenue yet this year"
+          />
+        </DashboardCard>
+
+        <DashboardCard
+          eyebrow="Ranked"
+          title="Revenue by service"
+        >
+          <RankedBarList
+            rows={topServices}
+            color="var(--ink)"
+            currencyCode={currencyCode}
+            empty="No revenue yet this year"
+          />
+        </DashboardCard>
+      </section>
+
+      <div className="section-header">
+        <div className="section-header-bar" />
+        <div className="section-header-title">Pipeline · drafts</div>
+        <div className="section-header-line" />
+      </div>
+
+      <section className="card">
+        {drafts.length === 0 ? (
+          <div className="caption mono">
+            No drafts in the pipeline. New invoices appear here until sent.
+          </div>
+        ) : (
+          <ul style={{ listStyle: "none" }}>
+            {drafts.map((inv, i) => {
+              const mailto = buildMailto(inv);
+              return (
                 <li
                   key={inv.id}
-                  className="flex items-center justify-between"
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "var(--sp-3)",
                     padding: "var(--sp-3) 0",
                     borderBottom:
-                      idx < recentInvoices.length - 1
+                      i < drafts.length - 1
                         ? "1px solid var(--border)"
                         : "none",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "var(--text-base)",
-                        fontWeight: "var(--fw-medium)",
-                        color: "var(--ink)",
-                      }}
-                    >
-                      {inv.client_name ?? "Untitled"}
-                    </div>
-                    <div
-                      className="mono"
-                      style={{
-                        fontSize: "var(--fs-11)",
-                        letterSpacing: "var(--ls-wide)",
-                        textTransform: "uppercase",
-                        color: "var(--muted)",
-                        marginTop: "var(--sp-1)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--sp-2)",
-                      }}
-                    >
-                      <span>{inv.number ?? "—"}</span>
-                      <span
-                        className={`badge status-${inv.status ?? "draft"}`}
-                      >
-                        {inv.status ?? "draft"}
-                      </span>
-                      <span>{inv.date ?? ""}</span>
-                    </div>
-                  </div>
                   <div
-                    className="mono"
                     style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: "var(--fw-semibold)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--sp-3)",
+                      flexWrap: "wrap",
+                      minWidth: 0,
+                      flex: 1,
                     }}
                   >
-                    {currency(invoiceTotal(inv.items, inv.discount))}
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--muted)",
+                      }}
+                    >
+                      {inv.number ?? "—"}
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: "var(--fw-semibold)",
+                        fontSize: "var(--text-base)",
+                      }}
+                    >
+                      {inv.client_name ?? "—"}
+                    </span>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--muted)",
+                      }}
+                    >
+                      Due {dateShort(inv.due)}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--sp-3)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      className="mono"
+                      style={{
+                        fontWeight: "var(--fw-bold)",
+                        color: "var(--brand-green)",
+                      }}
+                    >
+                      {currency(
+                        invoiceTotal(inv.items, inv.discount),
+                        currencyCode,
+                      )}
+                    </span>
+                    {mailto ? (
+                      <a
+                        className="btn btn-primary btn-xs"
+                        href={mailto}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Send
+                      </a>
+                    ) : (
+                      <span
+                        className="btn btn-ghost btn-xs"
+                        style={{
+                          opacity: 0.5,
+                          cursor: "not-allowed",
+                          pointerEvents: "none",
+                        }}
+                        title="No client email"
+                      >
+                        Send
+                      </span>
+                    )}
                   </div>
                 </li>
-              ))}
-            </ul>
-          )}
-        </div>
+              );
+            })}
+          </ul>
+        )}
       </section>
+
+      <div className="section-header">
+        <div className="section-header-bar" />
+        <div className="section-header-title">Recent invoices</div>
+        <div className="section-header-line" />
+      </div>
+
+      <div className="table-wrapper">
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Number</th>
+                <th>Client</th>
+                <th>Date</th>
+                <th className="td-right">Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="td-muted">
+                    No invoices yet.
+                  </td>
+                </tr>
+              ) : (
+                recent.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="td-mono td-strong">{inv.number ?? "—"}</td>
+                    <td>{inv.client_name ?? "—"}</td>
+                    <td className="td-muted">{dateShort(inv.date)}</td>
+                    <td className="td-right td-mono">
+                      {currency(
+                        invoiceTotal(inv.items, inv.discount),
+                        currencyCode,
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge status-${inv.status ?? "draft"}`}>
+                        {inv.status ?? "draft"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
 
-function KpiCard({
+// ── presentational helpers ──────────────────────────────────────────
+
+function Kpi({
   label,
   value,
   hint,
@@ -302,3 +489,162 @@ function KpiCard({
     </div>
   );
 }
+
+function DashboardCard({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="card">
+      <div style={{ marginBottom: "var(--sp-5)" }}>
+        <div className="label mono">{eyebrow}</div>
+        <h2 style={{ marginTop: "var(--sp-1)" }}>{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AgingRow({
+  label,
+  amount,
+  count,
+  pct,
+  severity,
+  currencyCode,
+}: {
+  label: string;
+  amount: number;
+  count: number;
+  pct: number;
+  severity: number;
+  currencyCode: string;
+}) {
+  // 0 = current (accent), 1..3 = danger w/ increasing opacity
+  const barColor = severity === 0 ? "var(--accent)" : "var(--danger)";
+  const barOpacity = severity === 0 ? 1 : severity === 1 ? 0.25 : severity === 2 ? 0.55 : 1;
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "var(--sp-1)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--fw-semibold)",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          className="mono"
+          style={{ fontSize: "var(--text-sm)", color: "var(--muted)" }}
+        >
+          {currency(amount, currencyCode)}
+          {count > 0 ? ` · ${count}` : ""}
+        </span>
+      </div>
+      <div
+        style={{
+          height: 8,
+          background: "var(--cream)",
+          borderRadius: "var(--r-xs)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${Math.max(0, Math.min(100, pct))}%`,
+            background: barColor,
+            opacity: barOpacity,
+            borderRadius: "var(--r-xs)",
+            transition: "width var(--t-normal)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RankedBarList({
+  rows,
+  color,
+  currencyCode,
+  empty,
+}: {
+  rows: { name: string; value: number }[];
+  color: string;
+  currencyCode: string;
+  empty: string;
+}) {
+  const max = rows[0]?.value ?? 0;
+  if (rows.length === 0) {
+    return <div className="caption mono">{empty}</div>;
+  }
+  return (
+    <div className="flex-col" style={{ gap: "var(--sp-3)" }}>
+      {rows.map((r) => {
+        const pct = max > 0 ? (r.value / max) * 100 : 0;
+        return (
+          <div key={r.name}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "var(--sp-1)",
+                gap: "var(--sp-2)",
+              }}
+            >
+              <span
+                className="truncate"
+                style={{
+                  fontSize: "var(--text-sm)",
+                  fontWeight: "var(--fw-semibold)",
+                  maxWidth: "60%",
+                }}
+                title={r.name}
+              >
+                {r.name}
+              </span>
+              <span
+                className="mono"
+                style={{ fontSize: "var(--text-sm)", color: "var(--muted)" }}
+              >
+                {currency(r.value, currencyCode)}
+              </span>
+            </div>
+            <div
+              style={{
+                height: 6,
+                background: "var(--cream)",
+                borderRadius: "var(--r-xs)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.max(0, Math.min(100, pct))}%`,
+                  background: color,
+                  borderRadius: "var(--r-xs)",
+                  transition: "width var(--t-normal)",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
