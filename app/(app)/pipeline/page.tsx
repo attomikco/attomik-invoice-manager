@@ -186,11 +186,24 @@ export default function PipelinePage() {
     [contacts],
   );
 
-  const fixedMRR = useMemo(
-    () =>
-      activeClients.reduce((s, c) => s + Number(c.monthly_value ?? 0), 0),
-    [activeClients],
-  );
+  const fixedMRR = useMemo(() => {
+    const total = activeClients.reduce(
+      (s, c) => s + Number(c.monthly_value ?? 0),
+      0,
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      "[pipeline] fixedMRR",
+      total,
+      activeClients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        monthly_value: c.monthly_value,
+      })),
+    );
+    return total;
+  }, [activeClients]);
   const warmPipelineMRR = useMemo(
     () => warmContacts.reduce((s, c) => s + Number(c.monthly_value ?? 0), 0),
     [warmContacts],
@@ -210,7 +223,9 @@ export default function PipelinePage() {
     () => pausedClients.reduce((s, c) => s + Number(c.monthly_value ?? 0), 0),
     [pausedClients],
   );
-  const gap = Math.max(0, targetMRR - fixedMRR);
+  const gapRaw = targetMRR - fixedMRR;
+  const aboveTarget = gapRaw <= 0;
+  const gapAbsolute = Math.abs(gapRaw);
 
   // ── handlers ────────────────────────────────────────────────────
 
@@ -380,8 +395,12 @@ export default function PipelinePage() {
         />
         <Kpi
           label="Warm pipeline"
-          value={currencyCompact(warmPipelineMRR)}
-          hint={`${warmContacts.length} warm / contacted`}
+          value={currencyCompact(warmPipelineMRR + sentProposalValue)}
+          hint={`${warmContacts.length} prospect${
+            warmContacts.length === 1 ? "" : "s"
+          } · ${sentProposals.length} proposal${
+            sentProposals.length === 1 ? "" : "s"
+          }`}
         />
         <TargetKpi
           editing={editingTarget}
@@ -397,8 +416,9 @@ export default function PipelinePage() {
         />
         <Kpi
           label="Gap to target"
-          value={currencyCompact(gap)}
-          hint={gap === 0 ? "on target" : "to reach goal"}
+          value={currencyCompact(gapAbsolute)}
+          hint={aboveTarget ? "above target ↑" : "to reach goal"}
+          tone={aboveTarget ? "positive" : "negative"}
         />
       </section>
 
@@ -1036,17 +1056,34 @@ function Kpi({
   value,
   hint,
   accent,
+  tone,
 }: {
   label: string;
   value: string;
   hint?: string;
   accent?: boolean;
+  tone?: "positive" | "negative";
 }) {
+  const toneColor =
+    tone === "positive"
+      ? "var(--brand-green-dark, var(--accent))"
+      : tone === "negative"
+        ? "var(--danger)"
+        : undefined;
   return (
     <div className={`kpi-card${accent ? " accent" : ""}`}>
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value">{value}</div>
-      {hint && <div className="kpi-sub">{hint}</div>}
+      <div className="kpi-value" style={toneColor ? { color: toneColor } : undefined}>
+        {value}
+      </div>
+      {hint && (
+        <div
+          className="kpi-sub"
+          style={toneColor ? { color: toneColor } : undefined}
+        >
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
