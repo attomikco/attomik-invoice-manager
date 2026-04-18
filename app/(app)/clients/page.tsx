@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { dateShort } from "@/lib/format";
 import { Modal, ConfirmDialog } from "@/components/modal";
 
 type Client = {
@@ -13,6 +12,10 @@ type Client = {
   company: string | null;
   address: string | null;
   payment_terms: string | null;
+  status: string | null;
+  monthly_value: number | null;
+  growth_stage: string | null;
+  notes: string | null;
   created_at: string | null;
 };
 
@@ -24,6 +27,10 @@ type Draft = {
   email: string;
   emails: string[];
   payment_terms: string;
+  status: string;
+  monthly_value: string;
+  growth_stage: string;
+  notes: string;
 };
 
 const EMPTY_DRAFT: Draft = {
@@ -33,6 +40,10 @@ const EMPTY_DRAFT: Draft = {
   email: "",
   emails: [],
   payment_terms: "Net 15",
+  status: "active",
+  monthly_value: "0",
+  growth_stage: "",
+  notes: "",
 };
 
 export default function ClientsPage() {
@@ -68,6 +79,10 @@ export default function ClientsPage() {
       email: editing.email,
       emails: editing.emails,
       payment_terms: editing.payment_terms,
+      status: editing.status || "active",
+      monthly_value: Number(editing.monthly_value) || 0,
+      growth_stage: editing.growth_stage || null,
+      notes: editing.notes || null,
     };
     if (editing.id) {
       await supabase.from("clients").update(payload).eq("id", editing.id);
@@ -107,22 +122,23 @@ export default function ClientsPage() {
               <tr>
                 <th>Name</th>
                 <th>Company</th>
+                <th>Status</th>
+                <th className="td-right">Monthly</th>
                 <th>Email</th>
                 <th>Payment terms</th>
-                <th>Created</th>
                 <th className="td-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="td-muted">
+                  <td colSpan={7} className="td-muted">
                     Loading…
                   </td>
                 </tr>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="td-muted">
+                  <td colSpan={7} className="td-muted">
                     No clients yet. Click &ldquo;New client&rdquo; to add one.
                   </td>
                 </tr>
@@ -131,9 +147,18 @@ export default function ClientsPage() {
                   <tr key={c.id}>
                     <td className="td-strong">{c.name ?? "—"}</td>
                     <td className="td-muted">{c.company ?? "—"}</td>
+                    <td>
+                      <span className={`badge status-${c.status ?? "active"}`}>
+                        {c.status ?? "active"}
+                      </span>
+                    </td>
+                    <td className="td-right td-mono">
+                      {Number(c.monthly_value ?? 0) > 0
+                        ? `$${Number(c.monthly_value).toLocaleString("en-US")}`
+                        : "—"}
+                    </td>
                     <td className="td-mono">{c.email ?? "—"}</td>
                     <td className="td-muted">{c.payment_terms ?? "—"}</td>
-                    <td className="td-muted">{dateShort(c.created_at)}</td>
                     <td className="td-right">
                       <div
                         className="flex gap-2"
@@ -150,6 +175,10 @@ export default function ClientsPage() {
                               email: c.email ?? "",
                               emails: Array.isArray(c.emails) ? c.emails : [],
                               payment_terms: c.payment_terms ?? "Net 15",
+                              status: c.status ?? "active",
+                              monthly_value: String(c.monthly_value ?? 0),
+                              growth_stage: c.growth_stage ?? "",
+                              notes: c.notes ?? "",
                             })
                           }
                         >
@@ -359,6 +388,53 @@ function ClientModal({
               onChange({ ...draft, payment_terms: e.target.value })
             }
             placeholder="e.g. Net 15"
+          />
+        </div>
+        <div className="grid-3">
+          <div className="form-group">
+            <label className="form-label">Status</label>
+            <select
+              value={draft.status}
+              onChange={(e) => onChange({ ...draft, status: e.target.value })}
+            >
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Monthly Retainer ($)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.monthly_value}
+              onChange={(e) =>
+                onChange({ ...draft, monthly_value: e.target.value })
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Growth stage</label>
+            <select
+              value={draft.growth_stage}
+              onChange={(e) =>
+                onChange({ ...draft, growth_stage: e.target.value })
+              }
+            >
+              <option value="">—</option>
+              <option value="launch">Launch</option>
+              <option value="scale">Scale</option>
+              <option value="optimize">Optimize</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Notes</label>
+          <textarea
+            rows={3}
+            value={draft.notes}
+            onChange={(e) => onChange({ ...draft, notes: e.target.value })}
           />
         </div>
       </form>

@@ -8,6 +8,10 @@ export type Client = {
   company: string | null;
   address: string | null;
   payment_terms: string | null;
+  status: string | null;
+  monthly_value: number | null;
+  growth_stage: string | null;
+  notes: string | null;
 };
 
 export type Service = {

@@ -24,6 +24,10 @@ create table clients (
   company text,
   address text,
   payment_terms text,
+  status text default 'active',
+  monthly_value numeric default 0,
+  growth_stage text,
+  notes text,
   created_at timestamptz default now()
 );
 
@@ -74,6 +78,7 @@ create table pipeline_contacts (
   company text,
   email text,
   status text default 'idea',
+  stage text,
   notes text,
   monthly_value numeric default 0,
   last_contact date,
