@@ -97,10 +97,12 @@ export default function InvoiceForm({
     }
     const s = services.find((x) => x.id === id);
     if (!s) return;
+    // eslint-disable-next-line no-console
+    console.log("[invoice-form] picked service", s);
     updateLine(i, {
       service_id: id,
       title: s.name ?? "",
-      description: s.description ?? "",
+      description: (s.description ?? s.desc ?? "") as string,
       rate: String(s.price ?? 0),
     });
   }

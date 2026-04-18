@@ -14,6 +14,7 @@ export type Service = {
   id: string;
   name: string | null;
   description: string | null;
+  desc?: string | null;
   price: number | null;
 };
 
