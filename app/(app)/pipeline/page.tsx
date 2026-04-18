@@ -182,9 +182,32 @@ export default function PipelinePage() {
     [contacts],
   );
   const ideaContacts = useMemo(
-    () => contacts.filter((c) => (c.status ?? "idea") === "idea"),
+    () => contacts.filter((c) => c.status === "idea"),
     [contacts],
   );
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (loading) return;
+    // eslint-disable-next-line no-console
+    console.log("[pipeline] cancelled/declined rows", {
+      cancelledClients: cancelledClients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+      })),
+      declinedContacts: declinedContacts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+      })),
+      ideaContacts: ideaContacts.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+      })),
+    });
+  }, [loading, cancelledClients, declinedContacts, ideaContacts]);
 
   const fixedMRR = useMemo(() => {
     const total = activeClients.reduce(
