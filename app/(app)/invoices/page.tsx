@@ -168,13 +168,21 @@ export default function InvoicesPage() {
       inv.items && inv.items.length > 0
         ? inv.items.map((li) => {
             const draftLine = toLineItemDraft(li);
-            if (!draftLine.service_id) {
-              const matched = services.find(
+            const matched =
+              (draftLine.service_id &&
+                services.find((s) => s.id === draftLine.service_id)) ||
+              services.find(
                 (s) =>
                   (s.name ?? "").toLowerCase() ===
                   (draftLine.title ?? "").toLowerCase(),
-              );
-              if (matched) draftLine.service_id = matched.id;
+              ) ||
+              null;
+            if (matched && !draftLine.service_id) {
+              draftLine.service_id = matched.id;
+            }
+            if (!draftLine.description && matched) {
+              draftLine.description =
+                (matched.description ?? matched.desc ?? "") as string;
             }
             return draftLine;
           })
