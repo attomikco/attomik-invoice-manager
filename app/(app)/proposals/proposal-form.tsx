@@ -15,10 +15,14 @@ export type ProposalDraft = {
   notes: string;
   phase1_title: string;
   phase1_price: string;
+  phase1_compare: string;
+  phase1_note: string;
   phase1_timeline: string;
   phase1_payment: string;
   phase2_title: string;
   phase2_monthly: string;
+  phase2_compare: string;
+  phase2_note: string;
   phase2_commitment: string;
 };
 
@@ -179,6 +183,28 @@ export default function ProposalForm({
         </div>
         <div className="grid-2">
           <div className="form-group">
+            <label className="form-label">Standard Rate</label>
+            <input
+              value={draft.phase1_compare}
+              onChange={(e) =>
+                onChange({ ...draft, phase1_compare: e.target.value })
+              }
+              placeholder="e.g. $10,000"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Note</label>
+            <input
+              value={draft.phase1_note}
+              onChange={(e) =>
+                onChange({ ...draft, phase1_note: e.target.value })
+              }
+              placeholder="e.g. Early Stage Rate"
+            />
+          </div>
+        </div>
+        <div className="grid-2">
+          <div className="form-group">
             <label className="form-label">Timeline</label>
             <input
               value={draft.phase1_timeline}
@@ -233,6 +259,28 @@ export default function ProposalForm({
                 onChange({ ...draft, phase2_commitment: e.target.value })
               }
               placeholder="e.g. 6 months"
+            />
+          </div>
+        </div>
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label">Standard Rate</label>
+            <input
+              value={draft.phase2_compare}
+              onChange={(e) =>
+                onChange({ ...draft, phase2_compare: e.target.value })
+              }
+              placeholder="e.g. $5,000 / mo"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Note</label>
+            <input
+              value={draft.phase2_note}
+              onChange={(e) =>
+                onChange({ ...draft, phase2_note: e.target.value })
+              }
+              placeholder="e.g. Early Stage Rate"
             />
           </div>
         </div>

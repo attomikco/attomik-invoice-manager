@@ -49,10 +49,14 @@ export type Proposal = {
   notes: string | null;
   phase1_title: string | null;
   phase1_price: string | null;
+  phase1_compare: string | null;
+  phase1_note: string | null;
   phase1_timeline: string | null;
   phase1_payment: string | null;
   phase2_title: string | null;
   phase2_monthly: string | null;
+  phase2_compare: string | null;
+  phase2_note: string | null;
   phase2_commitment: string | null;
   created_at: string | null;
 };

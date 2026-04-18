@@ -12,10 +12,14 @@ type Proposal = {
   intro: string | null;
   phase1_title: string | null;
   phase1_price: string | null;
+  phase1_compare: string | null;
+  phase1_note: string | null;
   phase1_timeline: string | null;
   phase1_payment: string | null;
   phase2_title: string | null;
   phase2_monthly: string | null;
+  phase2_compare: string | null;
+  phase2_note: string | null;
   phase2_commitment: string | null;
 };
 
@@ -400,10 +404,12 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += Math.ceil(deliverables.length / 2) * (tileH + 8) + 12;
 
   // Pricing card
+  const p1cardH = prop.phase1_compare || prop.phase1_note ? 96 : 78;
+  const ACCENT_DARK: RGB = [0, 150, 85];
   setStroke(BORDER);
   doc.setLineWidth(0.5);
   setFill(CREAM);
-  doc.rect(margin, y, contentW, 78, "FD");
+  doc.rect(margin, y, contentW, p1cardH, "FD");
   setFill(ACCENT);
   doc.rect(margin, y, contentW, 4, "F");
   const pcols: [number, string, string][] = [
@@ -415,7 +421,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     if (i > 0) {
       setStroke(BORDER);
       doc.setLineWidth(0.5);
-      doc.line(pc[0], y + 4, pc[0], y + 78);
+      doc.line(pc[0], y + 4, pc[0], y + p1cardH);
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
@@ -428,8 +434,29 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const valY = y + 31 + fSz * 0.72;
     const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
     doc.text(vl, pc[0] + 16, valY);
+    if (i === 0 && (prop.phase1_compare || prop.phase1_note)) {
+      const lineY = valY + 16;
+      let cx = pc[0] + 16;
+      if (prop.phase1_compare) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        setColor(MUTED);
+        doc.text(prop.phase1_compare, cx, lineY);
+        const w = doc.getTextWidth(prop.phase1_compare);
+        setStroke(MUTED);
+        doc.setLineWidth(0.6);
+        doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
+        cx += w + 8;
+      }
+      if (prop.phase1_note) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        setColor(ACCENT_DARK);
+        doc.text(`· ${prop.phase1_note}`, cx, lineY);
+      }
+    }
   });
-  y += 96;
+  y += p1cardH + 18;
 
   // Scope
   label("SCOPE OF WORK", margin, y);
@@ -518,10 +545,12 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += 20;
 
   // Phase 2 pricing card
+  const p2cardH = prop.phase2_compare || prop.phase2_note ? 108 : 90;
+  const ACCENT_DARK2: RGB = [0, 150, 85];
   setFill(CREAM);
   setStroke(BORDER);
   doc.setLineWidth(0.5);
-  doc.rect(margin, y, contentW, 90, "FD");
+  doc.rect(margin, y, contentW, p2cardH, "FD");
   setFill(ACCENT);
   doc.rect(margin, y, contentW, 4, "F");
   const p2cols: [number, string, string, string][] = [
@@ -533,7 +562,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     if (i > 0) {
       setStroke(BORDER);
       doc.setLineWidth(0.5);
-      doc.line(pc[0], y + 4, pc[0], y + 90);
+      doc.line(pc[0], y + 4, pc[0], y + p2cardH);
     }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
@@ -546,6 +575,27 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const valY2 = y + 30 + vSz * 0.72;
     const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
     doc.text(vl, pc[0] + 16, valY2);
+    if (i === 0 && (prop.phase2_compare || prop.phase2_note)) {
+      const lineY = valY2 + 16;
+      let cx = pc[0] + 16;
+      if (prop.phase2_compare) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        setColor(MUTED);
+        doc.text(prop.phase2_compare, cx, lineY);
+        const w = doc.getTextWidth(prop.phase2_compare);
+        setStroke(MUTED);
+        doc.setLineWidth(0.6);
+        doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
+        cx += w + 8;
+      }
+      if (prop.phase2_note) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        setColor(ACCENT_DARK2);
+        doc.text(`· ${prop.phase2_note}`, cx, lineY);
+      }
+    }
     if (i !== 0 && pc[3]) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
@@ -554,7 +604,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
       doc.text(nl, pc[0] + 16, y + 62);
     }
   });
-  y += 100;
+  y += p2cardH + 10;
 
   label("SCOPE OF WORK", margin, y);
   y += 14;

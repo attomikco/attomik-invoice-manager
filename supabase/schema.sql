@@ -50,10 +50,14 @@ create table proposals (
   notes text,
   phase1_title text,
   phase1_price text,
+  phase1_compare text,
+  phase1_note text,
   phase1_timeline text,
   phase1_payment text,
   phase2_title text,
   phase2_monthly text,
+  phase2_compare text,
+  phase2_note text,
   phase2_commitment text,
   created_at timestamptz default now()
 );

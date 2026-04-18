@@ -39,10 +39,14 @@ function emptyDraft(number: string): ProposalDraft {
     notes: "",
     phase1_title: "",
     phase1_price: "",
+    phase1_compare: "",
+    phase1_note: "",
     phase1_timeline: "",
     phase1_payment: "",
     phase2_title: "",
     phase2_monthly: "",
+    phase2_compare: "",
+    phase2_note: "",
     phase2_commitment: "",
   };
 }
@@ -91,18 +95,16 @@ export default function ProposalsPage() {
 
   const stats = useMemo(() => {
     const total = proposals.length;
-    const open = proposals.filter(
-      (p) => p.status === "draft" || p.status === "sent",
-    ).length;
+    const sent = proposals.filter((p) => p.status === "sent").length;
     const accepted = proposals.filter((p) => p.status === "accepted").length;
     const closed = proposals.filter(
       (p) => p.status === "accepted" || p.status === "declined",
     ).length;
     const winRate = closed > 0 ? Math.round((accepted / closed) * 100) : 0;
     const pipelineValue = proposals
-      .filter((p) => p.status === "draft" || p.status === "sent")
+      .filter((p) => p.status === "sent")
       .reduce((sum, p) => sum + proposalTotal(p), 0);
-    return { total, open, winRate, pipelineValue };
+    return { total, sent, winRate, pipelineValue };
   }, [proposals]);
 
   function startNew() {
@@ -123,10 +125,14 @@ export default function ProposalsPage() {
       notes: p.notes ?? "",
       phase1_title: p.phase1_title ?? "",
       phase1_price: p.phase1_price ?? "",
+      phase1_compare: p.phase1_compare ?? "",
+      phase1_note: p.phase1_note ?? "",
       phase1_timeline: p.phase1_timeline ?? "",
       phase1_payment: p.phase1_payment ?? "",
       phase2_title: p.phase2_title ?? "",
       phase2_monthly: p.phase2_monthly ?? "",
+      phase2_compare: p.phase2_compare ?? "",
+      phase2_note: p.phase2_note ?? "",
       phase2_commitment: p.phase2_commitment ?? "",
     });
   }
@@ -147,10 +153,14 @@ export default function ProposalsPage() {
       notes: editing.notes,
       phase1_title: editing.phase1_title,
       phase1_price: editing.phase1_price,
+      phase1_compare: editing.phase1_compare,
+      phase1_note: editing.phase1_note,
       phase1_timeline: editing.phase1_timeline,
       phase1_payment: editing.phase1_payment,
       phase2_title: editing.phase2_title,
       phase2_monthly: editing.phase2_monthly,
+      phase2_compare: editing.phase2_compare,
+      phase2_note: editing.phase2_note,
       phase2_commitment: editing.phase2_commitment,
     };
     if (editing.id) {
@@ -210,8 +220,8 @@ export default function ProposalsPage() {
         <Kpi label="Total" value={String(stats.total)} hint="all proposals" />
         <Kpi
           label="Open"
-          value={String(stats.open)}
-          hint="draft or sent"
+          value={String(stats.sent)}
+          hint="sent proposals"
           accent
         />
         <Kpi
@@ -222,7 +232,7 @@ export default function ProposalsPage() {
         <Kpi
           label="Pipeline value"
           value={currency(stats.pipelineValue, currencyCode)}
-          hint="open proposals"
+          hint="sent proposals"
         />
       </section>
 
@@ -291,12 +301,14 @@ export default function ProposalsPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          className="btn btn-dark btn-xs"
-                          onClick={() => convertToInvoice(p)}
-                        >
-                          → Invoice
-                        </button>
+                        {p.status === "accepted" && (
+                          <button
+                            className="btn btn-dark btn-xs"
+                            onClick={() => convertToInvoice(p)}
+                          >
+                            → Invoice
+                          </button>
+                        )}
                         <button
                           className="btn btn-danger btn-xs"
                           onClick={() => setDeleting(p)}

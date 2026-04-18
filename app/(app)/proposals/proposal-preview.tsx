@@ -153,13 +153,44 @@ export default function ProposalPreview({
               {proposal.phase1_title ?? "—"}
             </div>
             <div
-              className="mono"
               style={{
                 marginTop: "var(--sp-2)",
-                fontSize: "var(--text-md)",
+                display: "flex",
+                alignItems: "baseline",
+                gap: "var(--sp-2)",
+                flexWrap: "wrap",
               }}
             >
-              {proposal.phase1_price ?? "—"}
+              <span
+                className="mono"
+                style={{ fontSize: "var(--text-md)" }}
+              >
+                {proposal.phase1_price ?? "—"}
+              </span>
+              {proposal.phase1_compare && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--muted)",
+                    textDecoration: "line-through",
+                  }}
+                >
+                  {proposal.phase1_compare}
+                </span>
+              )}
+              {proposal.phase1_note && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--brand-green-dark, var(--accent))",
+                    fontWeight: "var(--fw-semibold)",
+                  }}
+                >
+                  · {proposal.phase1_note}
+                </span>
+              )}
             </div>
             {proposal.phase1_timeline && (
               <div className="caption" style={{ marginTop: "var(--sp-1)" }}>
@@ -196,14 +227,47 @@ export default function ProposalPreview({
               {proposal.phase2_title ?? "—"}
             </div>
             <div
-              className="mono"
               style={{
                 marginTop: "var(--sp-2)",
-                fontSize: "var(--text-md)",
-                color: "var(--accent)",
+                display: "flex",
+                alignItems: "baseline",
+                gap: "var(--sp-2)",
+                flexWrap: "wrap",
               }}
             >
-              {proposal.phase2_monthly ?? "—"}
+              <span
+                className="mono"
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--accent)",
+                }}
+              >
+                {proposal.phase2_monthly ?? "—"}
+              </span>
+              {proposal.phase2_compare && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--white-a50)",
+                    textDecoration: "line-through",
+                  }}
+                >
+                  {proposal.phase2_compare}
+                </span>
+              )}
+              {proposal.phase2_note && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--accent)",
+                    fontWeight: "var(--fw-semibold)",
+                  }}
+                >
+                  · {proposal.phase2_note}
+                </span>
+              )}
             </div>
             {proposal.phase2_commitment && (
               <div

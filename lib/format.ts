@@ -85,21 +85,10 @@ function parseMoney(s: string | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
-function parseMonths(s: string | null | undefined): number {
-  if (!s) return 0;
-  const m = /(\d+(?:\.\d+)?)/.exec(String(s));
-  return m ? parseFloat(m[1]) : 0;
-}
-
 export function proposalTotal(p: {
   phase1_price?: string | null;
-  phase2_monthly?: string | null;
-  phase2_commitment?: string | null;
 }): number {
-  const p1 = parseMoney(p.phase1_price);
-  const p2Monthly = parseMoney(p.phase2_monthly);
-  const months = parseMonths(p.phase2_commitment);
-  return p1 + p2Monthly * months;
+  return parseMoney(p.phase1_price);
 }
 
 export function nextInvoiceNumber(
