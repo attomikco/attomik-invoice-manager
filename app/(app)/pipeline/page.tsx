@@ -196,7 +196,10 @@ export default function PipelinePage() {
     [warmContacts],
   );
   const sentProposals = useMemo(
-    () => proposals.filter((p) => p.status === "sent"),
+    () =>
+      proposals.filter(
+        (p) => p.status === "sent" || p.status === "draft",
+      ),
     [proposals],
   );
   const sentProposalValue = useMemo(
@@ -555,10 +558,7 @@ export default function PipelinePage() {
 
           {sentProposals.length > 0 && (
             <>
-              <Subheader
-                label="Proposals sent"
-                count={sentProposals.length}
-              />
+              <Subheader label="Proposals" count={sentProposals.length} />
               <div className="table-wrapper" style={{ marginBottom: "var(--sp-5)" }}>
                 <div className="table-scroll">
                   <table>
