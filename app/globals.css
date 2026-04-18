@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap");
+
+:root {
+  --bg: #ffffff;
+  --sidebar: #000000;
+  --accent: #00ff97;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: #0a0a0a;
+  font-family: "Barlow", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Barlow", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.font-mono,
+.mono {
+  font-family: "DM Mono", ui-monospace, monospace;
+}
