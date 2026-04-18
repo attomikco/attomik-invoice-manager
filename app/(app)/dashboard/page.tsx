@@ -6,6 +6,7 @@ import {
   type LineItem,
 } from "@/lib/format";
 import MRRChart from "./mrr-chart";
+import YearSelector from "./year-selector";
 
 type Invoice = {
   id: string;
@@ -37,7 +38,17 @@ function invoiceNumberInt(n: string | null): number {
   return m ? parseInt(m[0], 10) : 0;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { year?: string };
+}) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const yearOptions = [currentYear - 2, currentYear - 1, currentYear];
+  const parsed = parseInt(searchParams?.year ?? "", 10);
+  const selectedYear = yearOptions.includes(parsed) ? parsed : currentYear;
+
   const supabase = createClient();
 
   const [{ data: invData }, { data: stgData }] = await Promise.all([
@@ -60,12 +71,9 @@ export default async function DashboardPage() {
   }
   const currencyCode = settings.currency || "USD";
 
-  const now = new Date();
-  const thisYear = now.getFullYear();
-
   const yearInvoices = invoices.filter((i) => {
     const d = parseDate(i.date);
-    return d && d.getFullYear() === thisYear;
+    return d && d.getFullYear() === selectedYear;
   });
 
   const paidInv = yearInvoices.filter((i) => i.status === "paid");
@@ -82,10 +90,10 @@ export default async function DashboardPage() {
   const statOutstanding = total(outstandingInv);
   const statPipeline = total(draftInv);
 
-  // ── MRR by month (non-draft) ──────────────────────────────────────
+  // ── MRR by month (non-draft) — Jan–Dec of selected year ──────────
   const mrrByMonth = new Map<string, number>();
   for (let m = 0; m < 12; m++) {
-    const key = `${thisYear}-${String(m + 1).padStart(2, "0")}`;
+    const key = `${selectedYear}-${String(m + 1).padStart(2, "0")}`;
     mrrByMonth.set(key, 0);
   }
   for (const inv of yearInvoices) {
@@ -161,13 +169,13 @@ export default async function DashboardPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 6);
 
-  // ── Draft pipeline (all drafts, sorted by number desc) ────────────
-  const drafts = invoices
+  // ── Draft pipeline (drafts dated within selected year) ───────────
+  const drafts = yearInvoices
     .filter((i) => i.status === "draft")
     .sort((a, b) => invoiceNumberInt(b.number) - invoiceNumberInt(a.number));
 
-  // ── Recent: last 10 invoices by date ──────────────────────────────
-  const recent = [...invoices]
+  // ── Recent: last 10 invoices in selected year by date ────────────
+  const recent = [...yearInvoices]
     .sort((a, b) => {
       const da = parseDate(a.date)?.getTime() ?? 0;
       const db = parseDate(b.date)?.getTime() ?? 0;
@@ -203,15 +211,27 @@ export default async function DashboardPage() {
           <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
             00 / Dashboard
           </div>
-          <h1>Today.</h1>
+          <h1>
+            {selectedYear === currentYear ? "Today." : `${selectedYear}.`}
+          </h1>
         </div>
-        <div className="label mono">
-          {now.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: "var(--sp-2)",
+          }}
+        >
+          <YearSelector years={yearOptions} selected={selectedYear} />
+          <div className="label mono">
+            {now.toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
         </div>
       </header>
 
@@ -219,7 +239,7 @@ export default async function DashboardPage() {
         <Kpi
           label="Invoiced"
           value={currency(statInvoiced, currencyCode)}
-          hint={`${paidInv.length + outstandingInv.length} invoices · ${thisYear}`}
+          hint={`${paidInv.length + outstandingInv.length} invoices · ${selectedYear}`}
         />
         <Kpi
           label="Paid"
@@ -248,7 +268,7 @@ export default async function DashboardPage() {
       <section className="grid-2">
         <DashboardCard
           eyebrow="Revenue"
-          title="MRR · 12-month"
+          title={`Monthly Revenue · ${selectedYear}`}
         >
           <MRRChart data={mrrData} />
         </DashboardCard>
