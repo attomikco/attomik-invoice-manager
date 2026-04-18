@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { currency, invoiceTotal, type LineItem } from "@/lib/format";
 import MRRChart from "./mrr-chart";
 
 type Invoice = {
@@ -7,7 +8,7 @@ type Invoice = {
   date: string | null;
   status: string | null;
   client_name: string | null;
-  items: { price?: number; qty?: number; quantity?: number }[] | null;
+  items: LineItem[] | null;
   discount: number | null;
 };
 
@@ -18,20 +19,6 @@ type PipelineContact = {
   status: string | null;
   monthly_value: number | null;
 };
-
-function invoiceTotal(inv: Invoice): number {
-  const items = Array.isArray(inv.items) ? inv.items : [];
-  const subtotal = items.reduce((sum, item) => {
-    const qty = Number(item.qty ?? item.quantity ?? 1);
-    const price = Number(item.price ?? 0);
-    return sum + qty * price;
-  }, 0);
-  return Math.max(0, subtotal - Number(inv.discount ?? 0));
-}
-
-function currency(n: number) {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -59,11 +46,11 @@ export default async function DashboardPage() {
   );
 
   const totalRevenue = paidInvoices.reduce(
-    (sum, i) => sum + invoiceTotal(i),
+    (sum, i) => sum + invoiceTotal(i.items, i.discount),
     0,
   );
   const outstanding = outstandingInvoices.reduce(
-    (sum, i) => sum + invoiceTotal(i),
+    (sum, i) => sum + invoiceTotal(i.items, i.discount),
     0,
   );
 
@@ -71,7 +58,7 @@ export default async function DashboardPage() {
   const currentMonth = now.toISOString().slice(0, 7);
   const mrr = paidInvoices
     .filter((i) => i.date && i.date.startsWith(currentMonth))
-    .reduce((sum, i) => sum + invoiceTotal(i), 0);
+    .reduce((sum, i) => sum + invoiceTotal(i.items, i.discount), 0);
 
   const mrrByMonth = new Map<string, number>();
   for (let i = 11; i >= 0; i--) {
@@ -83,7 +70,10 @@ export default async function DashboardPage() {
     if (!inv.date) continue;
     const key = inv.date.slice(0, 7);
     if (mrrByMonth.has(key)) {
-      mrrByMonth.set(key, (mrrByMonth.get(key) ?? 0) + invoiceTotal(inv));
+      mrrByMonth.set(
+        key,
+        (mrrByMonth.get(key) ?? 0) + invoiceTotal(inv.items, inv.discount),
+      );
     }
   }
   const chartData = Array.from(mrrByMonth.entries()).map(([month, value]) => ({
@@ -281,7 +271,7 @@ export default async function DashboardPage() {
                       fontWeight: "var(--fw-semibold)",
                     }}
                   >
-                    {currency(invoiceTotal(inv))}
+                    {currency(invoiceTotal(inv.items, inv.discount))}
                   </div>
                 </li>
               ))}
