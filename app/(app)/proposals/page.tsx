@@ -8,19 +8,14 @@ import {
   dateShort,
   dateISO,
   addDays,
-  invoiceTotal,
+  proposalTotal,
   nextInvoiceNumber,
 } from "@/lib/format";
 import { ConfirmDialog } from "@/components/modal";
 import {
-  type Client,
   type Invoice,
   type Proposal,
-  type Service,
   type SettingsMap,
-  fromLineItemDraft,
-  toLineItemDraft,
-  EMPTY_LINE,
 } from "@/lib/types";
 import ProposalForm, { type ProposalDraft } from "./proposal-form";
 import ProposalPreview from "./proposal-preview";
@@ -37,13 +32,10 @@ function emptyDraft(number: string): ProposalDraft {
     date: today,
     valid_until: valid,
     status: "draft",
-    client_id: "",
     client_name: "",
     client_email: "",
     client_company: "",
     intro: "",
-    items: [{ ...EMPTY_LINE }],
-    discount: "0",
     notes: "",
     phase1_title: "",
     phase1_price: "",
@@ -60,8 +52,6 @@ export default function ProposalsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [settings, setSettings] = useState<SettingsMap>({});
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ProposalDraft | null>(null);
@@ -71,13 +61,7 @@ export default function ProposalsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [
-      { data: props },
-      { data: invs },
-      { data: cls },
-      { data: svcs },
-      { data: stg },
-    ] = await Promise.all([
+    const [{ data: props }, { data: invs }, { data: stg }] = await Promise.all([
       supabase
         .from("proposals")
         .select("*")
@@ -87,17 +71,10 @@ export default function ProposalsPage() {
         .select("id, number")
         .order("date", { ascending: false })
         .limit(500),
-      supabase.from("clients").select("*").order("name", { ascending: true }),
-      supabase
-        .from("services")
-        .select("*")
-        .order("price", { ascending: true }),
       supabase.from("settings").select("key, value"),
     ]);
     setProposals((props as Proposal[] | null) ?? []);
     setInvoices((invs as Invoice[] | null) ?? []);
-    setClients((cls as Client[] | null) ?? []);
-    setServices((svcs as Service[] | null) ?? []);
     const map: SettingsMap = {};
     for (const row of (stg as { key: string; value: string }[] | null) ?? []) {
       (map as Record<string, string>)[row.key] = row.value;
@@ -124,7 +101,7 @@ export default function ProposalsPage() {
     const winRate = closed > 0 ? Math.round((accepted / closed) * 100) : 0;
     const pipelineValue = proposals
       .filter((p) => p.status === "draft" || p.status === "sent")
-      .reduce((sum, p) => sum + invoiceTotal(p.items, p.discount), 0);
+      .reduce((sum, p) => sum + proposalTotal(p), 0);
     return { total, open, winRate, pipelineValue };
   }, [proposals]);
 
@@ -139,16 +116,10 @@ export default function ProposalsPage() {
       date: p.date ?? dateISO(),
       valid_until: p.valid_until ?? dateISO(addDays(new Date(), 30)),
       status: p.status ?? "draft",
-      client_id: "",
       client_name: p.client_name ?? "",
       client_email: p.client_email ?? "",
       client_company: p.client_company ?? "",
       intro: p.intro ?? "",
-      items:
-        p.items && p.items.length > 0
-          ? p.items.map(toLineItemDraft)
-          : [{ ...EMPTY_LINE }],
-      discount: String(p.discount ?? 0),
       notes: p.notes ?? "",
       phase1_title: p.phase1_title ?? "",
       phase1_price: p.phase1_price ?? "",
@@ -173,8 +144,6 @@ export default function ProposalsPage() {
       client_email: editing.client_email,
       client_company: editing.client_company,
       intro: editing.intro,
-      items: editing.items.map(fromLineItemDraft),
-      discount: Number(editing.discount) || 0,
       notes: editing.notes,
       phase1_title: editing.phase1_title,
       phase1_price: editing.phase1_price,
@@ -214,8 +183,8 @@ export default function ProposalsPage() {
       client_email: p.client_email,
       client_company: p.client_company,
       client_address: null,
-      items: p.items ?? [],
-      discount: p.discount ?? 0,
+      items: [],
+      discount: 0,
       notes: p.notes,
     };
     await supabase.from("invoices").insert(payload);
@@ -298,10 +267,7 @@ export default function ProposalsPage() {
                     <td className="td-muted">{dateShort(p.date)}</td>
                     <td className="td-muted">{dateShort(p.valid_until)}</td>
                     <td className="td-right td-mono">
-                      {currency(
-                        invoiceTotal(p.items, p.discount),
-                        currencyCode,
-                      )}
+                      {currency(proposalTotal(p), currencyCode)}
                     </td>
                     <td>
                       <span className={`badge status-${p.status ?? "draft"}`}>
@@ -350,10 +316,7 @@ export default function ProposalsPage() {
       <ProposalForm
         open={!!editing}
         draft={editing}
-        clients={clients}
-        services={services}
         saving={saving}
-        currencyCode={currencyCode}
         onChange={setEditing}
         onClose={() => setEditing(null)}
         onSubmit={handleSave}

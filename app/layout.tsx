@@ -4,7 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Attomik HQ",
   description: "Attomik internal operations",
-  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({

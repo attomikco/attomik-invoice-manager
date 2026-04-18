@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { currency, dateShort, lineSubtotal } from "@/lib/format";
+import { dateShort } from "@/lib/format";
 import { Modal } from "@/components/modal";
 import PDFDownloadButton from "@/components/pdf-download-button";
 import type { Proposal, SettingsMap } from "@/lib/types";
@@ -17,17 +16,7 @@ export default function ProposalPreview({
   settings: SettingsMap;
   onClose: () => void;
 }) {
-  const subtotal = useMemo(
-    () => lineSubtotal(proposal?.items),
-    [proposal?.items],
-  );
-
   if (!proposal) return null;
-
-  const discPct = Number(proposal.discount ?? 0);
-  const discAmt = subtotal * (discPct / 100);
-  const total = Math.max(0, subtotal - discAmt);
-  const code = settings.currency ?? "USD";
 
   return (
     <Modal
@@ -144,62 +133,6 @@ export default function ProposalPreview({
           </p>
         )}
 
-        {proposal.items && proposal.items.length > 0 && (
-          <>
-            <div className="section-header" style={{ margin: "0 0 var(--sp-3)" }}>
-              <div className="section-header-bar" />
-              <div className="section-header-title">Scope</div>
-              <div className="section-header-line" />
-            </div>
-            <table style={{ marginBottom: "var(--sp-5)" }}>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th className="td-right">Qty</th>
-                  <th className="td-right">Rate</th>
-                  <th className="td-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proposal.items.map((it, i) => {
-                  const qty = Number(it.qty ?? it.quantity ?? 1);
-                  const rate = Number(it.rate ?? it.price ?? 0);
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div className="td-strong">{it.title ?? "—"}</div>
-                        {it.description && (
-                          <div className="caption">{it.description}</div>
-                        )}
-                      </td>
-                      <td className="td-right td-mono">{qty}</td>
-                      <td className="td-right td-mono">
-                        {currency(rate, code)}
-                      </td>
-                      <td className="td-right td-mono">
-                        {currency(qty * rate, code)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ minWidth: 240 }}>
-                <Row label="Subtotal" value={currency(subtotal, code)} />
-                {discPct > 0 && (
-                  <Row
-                    label={`Discount (${discPct}%)`}
-                    value={`− ${currency(discAmt, code)}`}
-                  />
-                )}
-                <Row label="Total" value={currency(total, code)} emphasis />
-              </div>
-            </div>
-          </>
-        )}
-
         {(proposal.phase1_title || proposal.phase1_price) && (
           <div
             className="card"
@@ -305,32 +238,5 @@ export default function ProposalPreview({
         )}
       </div>
     </Modal>
-  );
-}
-
-function Row({
-  label,
-  value,
-  emphasis,
-}: {
-  label: string;
-  value: string;
-  emphasis?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "var(--sp-2) 0",
-        fontSize: emphasis ? "var(--text-md)" : "var(--text-base)",
-        fontWeight: emphasis ? "var(--fw-bold)" : "var(--fw-normal)",
-        borderTop: emphasis ? "1px solid var(--border)" : "none",
-        marginTop: emphasis ? "var(--sp-2)" : 0,
-      }}
-    >
-      <span className={emphasis ? undefined : "text-muted"}>{label}</span>
-      <span className="mono">{value}</span>
-    </div>
   );
 }
