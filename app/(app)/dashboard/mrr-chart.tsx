@@ -13,11 +13,11 @@ export default function MRRChart({ data }: { data: Point[] }) {
   const barW = data.length > 0 ? innerW / data.length - 4 : 0;
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div style={{ width: "100%", overflowX: "auto" }}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        className="w-full h-44"
+        style={{ width: "100%", height: 176 }}
       >
         {data.map((d, i) => {
           const h = max > 0 ? (d.value / max) * innerH : 0;
@@ -30,15 +30,15 @@ export default function MRRChart({ data }: { data: Point[] }) {
                 y={y}
                 width={barW}
                 height={h}
-                fill={d.value > 0 ? "#00ff97" : "#e5e5e5"}
+                fill={d.value > 0 ? "var(--accent)" : "var(--border)"}
               />
               <text
                 x={x + barW / 2}
                 y={height - 8}
                 textAnchor="middle"
                 fontSize="9"
-                fontFamily="DM Mono, monospace"
-                fill="#999"
+                fontFamily="var(--font-mono)"
+                fill="var(--muted)"
               >
                 {d.month.slice(5)}
               </text>

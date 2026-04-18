@@ -98,17 +98,18 @@ export default async function DashboardPage() {
   const recentInvoices = allInvoices.slice(0, 6);
 
   return (
-    <div className="p-8 lg:p-12 space-y-12">
-      <header className="flex items-end justify-between">
+    <div className="page-content">
+      <header className="page-header">
         <div>
-          <div className="mono text-[10px] uppercase tracking-widest text-black/40 mb-2">
+          <div
+            className="label mono"
+            style={{ marginBottom: "var(--sp-2)" }}
+          >
             00 / Dashboard
           </div>
-          <h1 className="text-5xl font-heading font-extrabold tracking-tight">
-            Today.
-          </h1>
+          <h1>Today.</h1>
         </div>
-        <div className="mono text-[10px] uppercase tracking-widest text-black/40">
+        <div className="label mono">
           {now.toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
@@ -118,70 +119,100 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="MRR" value={currency(mrr)} hint="this month" />
-        <StatCard
+      <section className="grid-4">
+        <KpiCard label="MRR" value={currency(mrr)} hint="this month" />
+        <KpiCard
           label="Total revenue"
           value={currency(totalRevenue)}
           hint={`${paidInvoices.length} paid invoices`}
         />
-        <StatCard
+        <KpiCard
           label="Outstanding"
           value={currency(outstanding)}
           hint={`${outstandingInvoices.length} unpaid`}
           accent
         />
-        <StatCard
+        <KpiCard
           label="Pipeline"
           value={currency(activePipelineValue)}
           hint={`${pipelineContacts.length} contacts`}
         />
       </section>
 
-      <section className="border border-black/10 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="mono text-[10px] uppercase tracking-widest text-black/40">
-              Revenue
-            </div>
-            <h2 className="text-2xl font-heading font-extrabold mt-1">
-              12-month trend
-            </h2>
-          </div>
-        </div>
+      <div className="section-header">
+        <div className="section-header-bar" />
+        <div className="section-header-title">Revenue · 12-month trend</div>
+        <div className="section-header-line" />
+      </div>
+
+      <section className="card">
         <MRRChart data={chartData} />
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="border border-black/10 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="mono text-[10px] uppercase tracking-widest text-black/40">
-                Pipeline
-              </div>
-              <h2 className="text-2xl font-heading font-extrabold mt-1">
-                Active & warm
-              </h2>
-            </div>
+      <div className="section-header">
+        <div className="section-header-bar" />
+        <div className="section-header-title">Activity</div>
+        <div className="section-header-line" />
+      </div>
+
+      <section className="grid-2">
+        <div className="card">
+          <div style={{ marginBottom: "var(--sp-5)" }}>
+            <div className="label mono">Pipeline</div>
+            <h2 style={{ marginTop: "var(--sp-1)" }}>Active &amp; warm</h2>
           </div>
           {pipelineContacts.length === 0 ? (
-            <p className="mono text-xs text-black/40 uppercase tracking-widest">
-              No contacts yet
-            </p>
+            <div className="caption mono">No contacts yet</div>
           ) : (
-            <ul className="divide-y divide-black/5">
-              {pipelineContacts.slice(0, 6).map((c) => (
+            <ul style={{ listStyle: "none" }}>
+              {pipelineContacts.slice(0, 6).map((c, idx) => (
                 <li
                   key={c.id}
-                  className="py-3 flex items-center justify-between"
+                  className="flex items-center justify-between"
+                  style={{
+                    padding: "var(--sp-3) 0",
+                    borderBottom:
+                      idx < pipelineContacts.slice(0, 6).length - 1
+                        ? "1px solid var(--border)"
+                        : "none",
+                  }}
                 >
                   <div>
-                    <div className="font-medium">{c.name ?? "—"}</div>
-                    <div className="mono text-[10px] uppercase tracking-widest text-black/40">
-                      {c.company ?? ""} · {c.status ?? "idea"}
+                    <div
+                      style={{
+                        fontSize: "var(--text-base)",
+                        fontWeight: "var(--fw-medium)",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {c.name ?? "—"}
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: "var(--fs-11)",
+                        letterSpacing: "var(--ls-wide)",
+                        textTransform: "uppercase",
+                        color: "var(--muted)",
+                        marginTop: "var(--sp-1)",
+                      }}
+                    >
+                      {c.company ?? ""}{" "}
+                      <span
+                        className={`badge status-${c.status ?? "draft"}`}
+                        style={{ marginLeft: "var(--sp-2)" }}
+                      >
+                        {c.status ?? "idea"}
+                      </span>
                     </div>
                   </div>
-                  <div className="mono text-sm">
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: "var(--fw-semibold)",
+                    }}
+                  >
                     {currency(Number(c.monthly_value ?? 0))}
                   </div>
                 </li>
@@ -190,38 +221,66 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="border border-black/10 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="mono text-[10px] uppercase tracking-widest text-black/40">
-                Recent invoices
-              </div>
-              <h2 className="text-2xl font-heading font-extrabold mt-1">
-                Latest activity
-              </h2>
-            </div>
+        <div className="card">
+          <div style={{ marginBottom: "var(--sp-5)" }}>
+            <div className="label mono">Recent invoices</div>
+            <h2 style={{ marginTop: "var(--sp-1)" }}>Latest activity</h2>
           </div>
           {recentInvoices.length === 0 ? (
-            <p className="mono text-xs text-black/40 uppercase tracking-widest">
-              No invoices yet
-            </p>
+            <div className="caption mono">No invoices yet</div>
           ) : (
-            <ul className="divide-y divide-black/5">
-              {recentInvoices.map((inv) => (
+            <ul style={{ listStyle: "none" }}>
+              {recentInvoices.map((inv, idx) => (
                 <li
                   key={inv.id}
-                  className="py-3 flex items-center justify-between"
+                  className="flex items-center justify-between"
+                  style={{
+                    padding: "var(--sp-3) 0",
+                    borderBottom:
+                      idx < recentInvoices.length - 1
+                        ? "1px solid var(--border)"
+                        : "none",
+                  }}
                 >
                   <div>
-                    <div className="font-medium">
+                    <div
+                      style={{
+                        fontSize: "var(--text-base)",
+                        fontWeight: "var(--fw-medium)",
+                        color: "var(--ink)",
+                      }}
+                    >
                       {inv.client_name ?? "Untitled"}
                     </div>
-                    <div className="mono text-[10px] uppercase tracking-widest text-black/40">
-                      {inv.number ?? "—"} · {inv.status ?? "draft"} ·{" "}
-                      {inv.date ?? ""}
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: "var(--fs-11)",
+                        letterSpacing: "var(--ls-wide)",
+                        textTransform: "uppercase",
+                        color: "var(--muted)",
+                        marginTop: "var(--sp-1)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "var(--sp-2)",
+                      }}
+                    >
+                      <span>{inv.number ?? "—"}</span>
+                      <span
+                        className={`badge status-${inv.status ?? "draft"}`}
+                      >
+                        {inv.status ?? "draft"}
+                      </span>
+                      <span>{inv.date ?? ""}</span>
                     </div>
                   </div>
-                  <div className="mono text-sm">
+                  <div
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: "var(--fw-semibold)",
+                    }}
+                  >
                     {currency(invoiceTotal(inv))}
                   </div>
                 </li>
@@ -234,7 +293,7 @@ export default async function DashboardPage() {
   );
 }
 
-function StatCard({
+function KpiCard({
   label,
   value,
   hint,
@@ -246,24 +305,10 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <div
-      className={`border p-6 ${
-        accent
-          ? "border-accent bg-accent/10"
-          : "border-black/10 hover:border-black/30 transition"
-      }`}
-    >
-      <div className="mono text-[10px] uppercase tracking-widest text-black/40 mb-3">
-        {label}
-      </div>
-      <div className="text-3xl font-heading font-extrabold tracking-tight">
-        {value}
-      </div>
-      {hint && (
-        <div className="mono text-[10px] uppercase tracking-widest text-black/40 mt-2">
-          {hint}
-        </div>
-      )}
+    <div className={`kpi-card${accent ? " accent" : ""}`}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+      {hint && <div className="kpi-sub">{hint}</div>}
     </div>
   );
 }

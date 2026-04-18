@@ -26,28 +26,55 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen flex bg-bg">
-      <aside className="w-64 bg-sidebar text-white flex flex-col shrink-0">
-        <div className="px-6 pt-8 pb-10">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 bg-accent rounded-full" />
-            <span className="mono text-[10px] tracking-widest text-white/50 uppercase">
+    <div className="app-layout">
+      <aside className="sidebar">
+        <div
+          className="sidebar-logo"
+          style={{
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: "var(--sp-1)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="pulse-dot" />
+            <span
+              className="mono"
+              style={{
+                fontSize: "var(--fs-10)",
+                letterSpacing: "var(--ls-widest)",
+                textTransform: "uppercase",
+                color: "var(--white-a50)",
+              }}
+            >
               Attomik HQ
             </span>
           </div>
-          <div className="mono text-[10px] tracking-widest text-white/30 uppercase">
+          <span
+            className="mono"
+            style={{
+              fontSize: "var(--fs-10)",
+              letterSpacing: "var(--ls-widest)",
+              textTransform: "uppercase",
+              color: "var(--white-a30)",
+            }}
+          >
             v1.0
-          </div>
+          </span>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="sidebar-nav">
           {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-center gap-3 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition"
-            >
-              <span className="mono text-[10px] text-white/30 group-hover:text-accent">
+            <Link key={item.href} href={item.href} className="nav-item">
+              <span
+                className="mono"
+                style={{
+                  fontSize: "var(--fs-10)",
+                  color: "var(--white-a30)",
+                  width: 18,
+                  flexShrink: 0,
+                }}
+              >
                 {item.code}
               </span>
               <span>{item.label}</span>
@@ -55,18 +82,37 @@ export default async function AppLayout({
           ))}
         </nav>
 
-        <div className="p-6 border-t border-white/10">
-          <div className="mono text-[10px] uppercase tracking-widest text-white/30 mb-1">
+        <div
+          className="sidebar-footer"
+          style={{ flexDirection: "column", alignItems: "stretch" }}
+        >
+          <div
+            className="mono"
+            style={{
+              fontSize: "var(--fs-10)",
+              letterSpacing: "var(--ls-widest)",
+              textTransform: "uppercase",
+              color: "var(--white-a30)",
+            }}
+          >
             Signed in
           </div>
-          <div className="text-xs text-white/70 mono truncate mb-4">
+          <div
+            className="mono truncate"
+            style={{
+              fontSize: "var(--text-sm)",
+              color: "var(--white-a70)",
+              marginTop: "var(--sp-1)",
+              marginBottom: "var(--sp-3)",
+            }}
+          >
             {user.email}
           </div>
           <SidebarSignOut />
         </div>
       </aside>
 
-      <main className="flex-1 overflow-x-hidden">{children}</main>
+      <main className="main">{children}</main>
     </div>
   );
 }

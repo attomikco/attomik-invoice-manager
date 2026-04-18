@@ -33,38 +33,100 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-sidebar text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-3 h-3 bg-accent rounded-full" />
-            <span className="mono text-xs tracking-widest text-white/60 uppercase">
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "var(--sidebar-bg)",
+        color: "var(--paper)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "var(--sp-6)",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <div style={{ marginBottom: "var(--sp-10)" }}>
+          <div
+            className="flex items-center gap-3"
+            style={{ marginBottom: "var(--sp-2)" }}
+          >
+            <span className="pulse-dot" />
+            <span
+              className="mono"
+              style={{
+                fontSize: "var(--fs-11)",
+                letterSpacing: "var(--ls-widest)",
+                textTransform: "uppercase",
+                color: "var(--white-a60)",
+              }}
+            >
               Attomik HQ
             </span>
           </div>
-          <h1 className="text-5xl font-heading font-extrabold tracking-tight">
+          <h1
+            style={{
+              fontSize: "var(--text-4xl)",
+              fontWeight: "var(--fw-heading)",
+              letterSpacing: "var(--ls-tight)",
+              color: "var(--paper)",
+              lineHeight: 1.05,
+            }}
+          >
             Sign in.
           </h1>
-          <p className="mt-3 text-white/60">
-            We'll email you a magic link.
+          <p
+            style={{
+              marginTop: "var(--sp-3)",
+              color: "var(--white-a60)",
+              fontSize: "var(--text-base)",
+            }}
+          >
+            We&rsquo;ll email you a magic link.
           </p>
         </div>
 
         {status === "sent" ? (
-          <div className="border border-accent/40 bg-accent/10 p-6">
-            <p className="mono text-xs uppercase tracking-widest text-accent mb-2">
-              Check your email
-            </p>
-            <p className="text-white/80">
-              Magic link sent to <span className="mono">{email}</span>.
-            </p>
+          <div
+            className="alert alert-success"
+            style={{
+              background: "var(--accent-a10)",
+              borderColor: "var(--accent-a40)",
+              color: "var(--accent)",
+            }}
+          >
+            <div>
+              <div
+                className="mono"
+                style={{
+                  fontSize: "var(--fs-11)",
+                  letterSpacing: "var(--ls-widest)",
+                  textTransform: "uppercase",
+                  marginBottom: "var(--sp-1)",
+                }}
+              >
+                Check your email
+              </div>
+              <div
+                style={{
+                  color: "var(--white-a80)",
+                  fontSize: "var(--text-base)",
+                }}
+              >
+                Magic link sent to <span className="mono">{email}</span>.
+              </div>
+            </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+          <form
+            onSubmit={handleSubmit}
+            className="flex-col"
+            style={{ gap: "var(--sp-4)" }}
+          >
+            <div className="form-group">
               <label
                 htmlFor="email"
-                className="mono text-[10px] uppercase tracking-widest text-white/50 block mb-2"
+                className="form-label"
+                style={{ color: "var(--white-a50)" }}
               >
                 Email
               </label>
@@ -77,27 +139,44 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@attomik.co"
-                className="w-full bg-transparent border border-white/20 focus:border-accent outline-none px-4 py-3 mono text-sm placeholder:text-white/30"
+                className="mono"
+                style={{
+                  background: "transparent",
+                  color: "var(--paper)",
+                  border: "1px solid var(--white-a20)",
+                  fontSize: "var(--text-sm)",
+                }}
               />
             </div>
 
             <button
               type="submit"
               disabled={status === "sending"}
-              className="w-full bg-accent text-black font-semibold py-3 hover:brightness-95 disabled:opacity-50 transition"
+              className="btn btn-primary btn-lg w-full"
             >
               {status === "sending" ? "Sending…" : "Send magic link"}
             </button>
 
             {error && (
-              <p className="mono text-xs text-red-400">{error}</p>
+              <div className="form-error mono" style={{ color: "#f87171" }}>
+                {error}
+              </div>
             )}
           </form>
         )}
 
-        <p className="mt-12 mono text-[10px] uppercase tracking-widest text-white/30">
+        <div
+          className="mono"
+          style={{
+            marginTop: "var(--sp-12)",
+            fontSize: "var(--fs-10)",
+            letterSpacing: "var(--ls-widest)",
+            textTransform: "uppercase",
+            color: "var(--white-a30)",
+          }}
+        >
           hq.attomik.co
-        </p>
+        </div>
       </div>
     </main>
   );

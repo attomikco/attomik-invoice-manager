@@ -16,7 +16,21 @@ export default function SidebarSignOut() {
   return (
     <button
       onClick={handleSignOut}
-      className="mono text-[10px] uppercase tracking-widest text-white/50 hover:text-accent transition"
+      className="mono"
+      style={{
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+        fontSize: "var(--fs-10)",
+        letterSpacing: "var(--ls-widest)",
+        textTransform: "uppercase",
+        color: "var(--white-a50)",
+        textAlign: "left",
+        transition: "color var(--t-base)",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--white-a50)")}
     >
       Sign out →
     </button>
