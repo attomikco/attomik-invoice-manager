@@ -1,12 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  FilePlus,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  addDays,
   currency,
-  dateShort,
+  currencyCompact,
+  dateCompact,
   dateISO,
   invoiceTotal,
+  nextInvoiceNumber,
   type LineItem,
 } from "@/lib/format";
 import { Modal, ConfirmDialog } from "@/components/modal";
@@ -24,6 +39,7 @@ type Contact = {
 
 type Invoice = {
   id: string;
+  number: string | null;
   client_name: string | null;
   date: string | null;
   status: string | null;
@@ -34,11 +50,12 @@ type Invoice = {
 type Proposal = {
   id: string;
   number: string | null;
+  date: string | null;
   client_name: string | null;
   status: string | null;
-  items: LineItem[] | null;
-  discount: number | null;
-  date: string | null;
+  phase1_price: string | null;
+  phase2_monthly: string | null;
+  phase2_commitment: string | null;
 };
 
 type Draft = {
@@ -62,21 +79,63 @@ const EMPTY_DRAFT: Draft = {
   last_contact: "",
 };
 
-const STATUS_OPTIONS = [
-  "idea",
-  "contacted",
-  "warm",
-  "no_reply",
-  "active",
-] as const;
+const SECTION_ORDER: { status: string; label: string }[] = [
+  { status: "warm", label: "Warm" },
+  { status: "contacted", label: "Contacted" },
+  { status: "no_reply", label: "No reply" },
+  { status: "idea", label: "Ideas" },
+];
 
-const TARGET_MRR = 25000;
+const DEFAULT_TARGET_MRR = 25000;
+
+// ── helpers ─────────────────────────────────────────────────────────
+
+function parseMoney(s: string | null | undefined): number {
+  if (!s) return 0;
+  const cleaned = String(s).replace(/[^\d.]/g, "");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+function promoteStatus(current: string): string | null {
+  switch (current) {
+    case "idea":
+      return "contacted";
+    case "contacted":
+      return "warm";
+    case "warm":
+      return "active";
+    case "no_reply":
+      return "contacted";
+    default:
+      return null;
+  }
+}
+
+function demoteStatus(current: string): string | null {
+  switch (current) {
+    case "warm":
+      return "contacted";
+    case "contacted":
+      return "no_reply";
+    default:
+      return null;
+  }
+}
+
+// ── page ────────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [targetMRR, setTargetMRR] = useState<number>(DEFAULT_TARGET_MRR);
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetDraft, setTargetDraft] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<Contact | null>(null);
@@ -84,26 +143,39 @@ export default function PipelinePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: cData }, { data: iData }, { data: pData }] =
-      await Promise.all([
-        supabase
-          .from("pipeline_contacts")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("invoices")
-          .select("id, client_name, date, status, items, discount")
-          .order("date", { ascending: false })
-          .limit(200),
-        supabase
-          .from("proposals")
-          .select("id, number, client_name, status, items, discount, date")
-          .order("date", { ascending: false })
-          .limit(200),
-      ]);
+    const [
+      { data: cData },
+      { data: iData },
+      { data: pData },
+      { data: stgData },
+    ] = await Promise.all([
+      supabase
+        .from("pipeline_contacts")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("invoices")
+        .select("id, number, client_name, date, status, items, discount")
+        .order("date", { ascending: false })
+        .limit(500),
+      supabase
+        .from("proposals")
+        .select(
+          "id, number, date, client_name, status, phase1_price, phase2_monthly, phase2_commitment",
+        )
+        .order("date", { ascending: false })
+        .limit(200),
+      supabase.from("settings").select("key, value"),
+    ]);
     setContacts((cData as Contact[] | null) ?? []);
     setInvoices((iData as Invoice[] | null) ?? []);
     setProposals((pData as Proposal[] | null) ?? []);
+    const targetRow =
+      (stgData as { key: string; value: string }[] | null)?.find(
+        (r) => r.key === "target_mrr",
+      ) ?? null;
+    const parsed = parseMoney(targetRow?.value);
+    setTargetMRR(parsed > 0 ? parsed : DEFAULT_TARGET_MRR);
     setLoading(false);
   }, [supabase]);
 
@@ -111,50 +183,94 @@ export default function PipelinePage() {
     load();
   }, [load]);
 
+  // ── derived ─────────────────────────────────────────────────────
+
   const fixedMRR = useMemo(() => {
-    return contacts
-      .filter((c) => c.status === "active")
-      .reduce((sum, c) => sum + Number(c.monthly_value ?? 0), 0);
-  }, [contacts]);
-
-  const warmPipeline = useMemo(() => {
-    return contacts
-      .filter((c) => c.status === "warm" || c.status === "contacted")
-      .reduce((sum, c) => sum + Number(c.monthly_value ?? 0), 0);
-  }, [contacts]);
-
-  const gap = Math.max(0, TARGET_MRR - fixedMRR);
-
-  const activeClients = useMemo(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const byClient = new Map<
-      string,
-      { total: number; latestStatus: string | null; date: string | null }
-    >();
+    const byClient = new Map<string, { amount: number; date: string }>();
     for (const inv of invoices) {
       if (!inv.client_name || !inv.date) continue;
       if (!inv.date.startsWith(currentMonth)) continue;
-      if (inv.status === "draft") continue;
-      const key = inv.client_name;
-      const prev = byClient.get(key);
-      const total = invoiceTotal(inv.items, inv.discount);
-      byClient.set(key, {
-        total: (prev?.total ?? 0) + total,
-        latestStatus: inv.status,
-        date: inv.date,
-      });
+      const status = inv.status ?? "";
+      if (status !== "paid" && status !== "sent" && status !== "overdue") continue;
+      const existing = byClient.get(inv.client_name);
+      if (!existing || inv.date > existing.date) {
+        byClient.set(inv.client_name, {
+          amount: invoiceTotal(inv.items, inv.discount),
+          date: inv.date,
+        });
+      }
     }
-    return Array.from(byClient.entries()).map(([name, v]) => ({
-      name,
-      ...v,
-    }));
+    return Array.from(byClient.values()).reduce((s, v) => s + v.amount, 0);
   }, [invoices]);
 
-  const warmLeads = useMemo(() => {
-    return proposals.filter(
-      (p) => p.status === "sent" || p.status === "draft",
-    );
+  const warmPipeline = useMemo(() => {
+    return proposals
+      .filter((p) => p.status === "sent")
+      .reduce((sum, p) => {
+        const phase1 = parseMoney(p.phase1_price);
+        const monthly = parseMoney(p.phase2_monthly);
+        const months = parseMoney(p.phase2_commitment);
+        return sum + phase1 + monthly * months;
+      }, 0);
   }, [proposals]);
+
+  const gap = Math.max(0, targetMRR - fixedMRR);
+
+  const activeClients = useMemo(() => {
+    const thisYear = new Date().getFullYear();
+    const byClient = new Map<
+      string,
+      { name: string; status: string; date: string; amount: number }
+    >();
+    for (const inv of invoices) {
+      if (!inv.client_name || !inv.date) continue;
+      const d = new Date(inv.date);
+      if (isNaN(d.getTime()) || d.getFullYear() !== thisYear) continue;
+      const status = inv.status ?? "";
+      if (status !== "paid" && status !== "sent" && status !== "overdue") continue;
+      const existing = byClient.get(inv.client_name);
+      if (!existing || inv.date > existing.date) {
+        byClient.set(inv.client_name, {
+          name: inv.client_name,
+          status,
+          date: inv.date,
+          amount: invoiceTotal(inv.items, inv.discount),
+        });
+      }
+    }
+    return Array.from(byClient.values()).sort((a, b) =>
+      a.date < b.date ? 1 : -1,
+    );
+  }, [invoices]);
+
+  const contactsByStatus = useMemo(() => {
+    const map = new Map<string, Contact[]>();
+    for (const s of SECTION_ORDER) map.set(s.status, []);
+    for (const c of contacts) {
+      const status = c.status ?? "idea";
+      if (status === "active") continue;
+      if (!map.has(status)) map.set(status, []);
+      map.get(status)!.push(c);
+    }
+    return map;
+  }, [contacts]);
+
+  // ── handlers ────────────────────────────────────────────────────
+
+  async function saveTarget(e: React.FormEvent) {
+    e.preventDefault();
+    const v = parseMoney(targetDraft);
+    if (v <= 0) {
+      setEditingTarget(false);
+      return;
+    }
+    await supabase
+      .from("settings")
+      .upsert({ key: "target_mrr", value: String(v) }, { onConflict: "key" });
+    setTargetMRR(v);
+    setEditingTarget(false);
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -189,27 +305,59 @@ export default function PipelinePage() {
     await load();
   }
 
-  async function markContacted(c: Contact) {
+  async function changeStatus(c: Contact, next: string) {
     await supabase
       .from("pipeline_contacts")
-      .update({ status: "contacted", last_contact: dateISO() })
+      .update({ status: next })
       .eq("id", c.id);
     await load();
   }
 
-  async function appendNote(c: Contact) {
-    const note = window.prompt("Add a note", "");
-    if (!note) return;
-    const stamp = dateISO();
-    const next = c.notes
-      ? `${c.notes}\n[${stamp}] ${note}`
-      : `[${stamp}] ${note}`;
-    await supabase
-      .from("pipeline_contacts")
-      .update({ notes: next, last_contact: stamp })
-      .eq("id", c.id);
-    await load();
+  async function convertToProposal(c: Contact) {
+    const number = nextInvoiceNumber(proposals, "PROP");
+    const today = dateISO();
+    const valid = dateISO(addDays(new Date(), 30));
+    await supabase.from("proposals").insert({
+      number,
+      date: today,
+      valid_until: valid,
+      status: "draft",
+      client_name: c.name,
+      client_email: c.email,
+      client_company: c.company,
+      intro:
+        "Built in two phases. You only commit to Phase 1 — Phase 2 starts after launch and runs month-by-month with no commitment, so you can cancel after Phase 1 or stop anytime once it's running.",
+      items: [],
+      discount: 0,
+      phase1_title: "DTC Strategy + Shopify Build",
+      phase1_price: "8000",
+      phase1_timeline: "20 – 45 days",
+      phase1_payment: "$5k to start · $3k on launch",
+      phase2_title: "Growth + Ads Bundle",
+      phase2_monthly: "$4,000 / mo",
+      phase2_commitment: "3",
+    });
+    router.push("/proposals");
   }
+
+  function openNew(status: string) {
+    setEditing({ ...EMPTY_DRAFT, status });
+  }
+
+  function openEdit(c: Contact) {
+    setEditing({
+      id: c.id,
+      name: c.name ?? "",
+      company: c.company ?? "",
+      email: c.email ?? "",
+      status: c.status ?? "idea",
+      notes: c.notes ?? "",
+      monthly_value: String(c.monthly_value ?? 0),
+      last_contact: c.last_contact ?? "",
+    });
+  }
+
+  // ── render ──────────────────────────────────────────────────────
 
   return (
     <div className="page-content">
@@ -222,150 +370,123 @@ export default function PipelinePage() {
         </div>
         <button
           className="btn btn-primary"
-          onClick={() => setEditing({ ...EMPTY_DRAFT })}
+          onClick={() => openNew("idea")}
         >
-          + New prospect
+          <Plus size={15} strokeWidth={2} />
+          New prospect
         </button>
       </header>
 
       <section className="grid-4">
-        <Kpi label="Fixed MRR" value={currency(fixedMRR)} hint="active clients" accent />
-        <Kpi label="Warm pipeline" value={currency(warmPipeline)} hint="projected monthly" />
-        <Kpi label="Target MRR" value={currency(TARGET_MRR)} hint="goal" />
+        <Kpi
+          label="Fixed MRR"
+          value={currencyCompact(fixedMRR)}
+          hint="most recent invoice · this month"
+          accent
+        />
+        <Kpi
+          label="Warm pipeline"
+          value={currencyCompact(warmPipeline)}
+          hint="sent proposals · phase 1 + total phase 2"
+        />
+        <TargetKpi
+          editing={editingTarget}
+          draft={targetDraft}
+          value={targetMRR}
+          onStart={() => {
+            setTargetDraft(String(targetMRR));
+            setEditingTarget(true);
+          }}
+          onChange={setTargetDraft}
+          onCancel={() => setEditingTarget(false)}
+          onSubmit={saveTarget}
+        />
         <Kpi
           label="Gap to target"
-          value={currency(gap)}
-          hint={`${gap === 0 ? "on target" : "to reach goal"}`}
+          value={currencyCompact(gap)}
+          hint={gap === 0 ? "on target" : "to reach goal"}
         />
       </section>
 
       <div className="section-header">
         <div className="section-header-bar" />
         <div className="section-header-title">
-          Active clients · this month
+          Active clients · this year
         </div>
         <div className="section-header-line" />
       </div>
+
       <div className="card">
-        {activeClients.length === 0 ? (
-          <div className="caption mono">No billed clients this month.</div>
+        {loading ? (
+          <div className="caption mono">Loading…</div>
+        ) : activeClients.length === 0 ? (
+          <div className="caption mono">No billed clients this year.</div>
         ) : (
           <ul style={{ listStyle: "none" }}>
             {activeClients.map((c, i) => (
               <li
                 key={c.name}
-                className="flex items-center justify-between"
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "var(--sp-3)",
                   padding: "var(--sp-3) 0",
                   borderBottom:
                     i < activeClients.length - 1
                       ? "1px solid var(--border)"
                       : "none",
+                  flexWrap: "wrap",
                 }}
               >
-                <div>
-                  <div
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--sp-3)",
+                    flex: 1,
+                    minWidth: 0,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
                     style={{
-                      fontSize: "var(--text-base)",
                       fontWeight: "var(--fw-semibold)",
                     }}
                   >
                     {c.name}
-                  </div>
-                  <div
+                  </span>
+                  <span className={`badge status-${c.status}`}>{c.status}</span>
+                  <span
                     className="mono"
                     style={{
-                      fontSize: "var(--fs-11)",
+                      fontSize: "var(--text-sm)",
                       color: "var(--muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "var(--ls-wide)",
-                      marginTop: "var(--sp-1)",
-                      display: "flex",
-                      gap: "var(--sp-2)",
-                      alignItems: "center",
                     }}
                   >
-                    <span
-                      className={`badge status-${c.latestStatus ?? "draft"}`}
-                    >
-                      {c.latestStatus ?? "draft"}
-                    </span>
-                    <span>{dateShort(c.date)}</span>
-                  </div>
+                    {dateCompact(c.date)}
+                  </span>
                 </div>
                 <div
-                  className="mono"
                   style={{
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--fw-semibold)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--sp-3)",
+                    flexShrink: 0,
                   }}
                 >
-                  {currency(c.total)}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="section-header">
-        <div className="section-header-bar" />
-        <div className="section-header-title">Warm leads · proposals</div>
-        <div className="section-header-line" />
-      </div>
-      <div className="card">
-        {warmLeads.length === 0 ? (
-          <div className="caption mono">No open proposals.</div>
-        ) : (
-          <ul style={{ listStyle: "none" }}>
-            {warmLeads.map((p, i) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between"
-                style={{
-                  padding: "var(--sp-3) 0",
-                  borderBottom:
-                    i < warmLeads.length - 1
-                      ? "1px solid var(--border)"
-                      : "none",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: "var(--text-base)",
-                      fontWeight: "var(--fw-semibold)",
-                    }}
-                  >
-                    {p.client_name ?? "Untitled"}
-                  </div>
-                  <div
+                  <span
                     className="mono"
-                    style={{
-                      fontSize: "var(--fs-11)",
-                      color: "var(--muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "var(--ls-wide)",
-                      marginTop: "var(--sp-1)",
-                      display: "flex",
-                      gap: "var(--sp-2)",
-                      alignItems: "center",
-                    }}
+                    style={{ fontWeight: "var(--fw-semibold)" }}
                   >
-                    <span>{p.number ?? "—"}</span>
-                    <span className={`badge status-${p.status ?? "draft"}`}>
-                      {p.status ?? "draft"}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className="mono"
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    fontWeight: "var(--fw-semibold)",
-                  }}
-                >
-                  {currency(invoiceTotal(p.items, p.discount))}
+                    {currencyCompact(c.amount)}
+                  </span>
+                  <Link
+                    href={`/invoices?client=${encodeURIComponent(c.name)}`}
+                    className="btn btn-ghost btn-xs"
+                  >
+                    View invoices
+                  </Link>
                 </div>
               </li>
             ))}
@@ -378,119 +499,30 @@ export default function PipelinePage() {
         <div className="section-header-title">Prospects CRM</div>
         <div className="section-header-line" />
       </div>
-      <div className="table-wrapper">
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Company</th>
-                <th>Status</th>
-                <th className="td-right">Monthly value</th>
-                <th>Last contact</th>
-                <th>Notes</th>
-                <th className="td-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="td-muted">
-                    Loading…
-                  </td>
-                </tr>
-              ) : contacts.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="td-muted">
-                    No prospects yet.
-                  </td>
-                </tr>
-              ) : (
-                contacts.map((c) => (
-                  <tr key={c.id}>
-                    <td className="td-strong">{c.name ?? "—"}</td>
-                    <td className="td-muted">{c.company ?? "—"}</td>
-                    <td>
-                      <span className={`badge status-${c.status ?? "draft"}`}>
-                        {c.status ?? "idea"}
-                      </span>
-                    </td>
-                    <td className="td-right td-mono">
-                      {currency(Number(c.monthly_value ?? 0))}
-                    </td>
-                    <td className="td-muted">{dateShort(c.last_contact)}</td>
-                    <td
-                      className="td-muted"
-                      style={{
-                        maxWidth: 260,
-                        whiteSpace: "normal",
-                        fontSize: "var(--text-sm)",
-                      }}
-                    >
-                      {c.notes ? (
-                        <span
-                          className="truncate"
-                          style={{
-                            display: "block",
-                            maxWidth: 260,
-                          }}
-                          title={c.notes}
-                        >
-                          {c.notes.split("\n").slice(-1)[0]}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="td-right">
-                      <div
-                        className="flex gap-2"
-                        style={{ justifyContent: "flex-end", flexWrap: "wrap" }}
-                      >
-                        <button
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => markContacted(c)}
-                        >
-                          Contacted
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => appendNote(c)}
-                        >
-                          + Note
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-xs"
-                          onClick={() =>
-                            setEditing({
-                              id: c.id,
-                              name: c.name ?? "",
-                              company: c.company ?? "",
-                              email: c.email ?? "",
-                              status: c.status ?? "idea",
-                              notes: c.notes ?? "",
-                              monthly_value: String(c.monthly_value ?? 0),
-                              last_contact: c.last_contact ?? "",
-                            })
-                          }
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-danger btn-xs"
-                          onClick={() => setDeleting(c)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+
+      {SECTION_ORDER.map(({ status, label }) => {
+        const list = contactsByStatus.get(status) ?? [];
+        return (
+          <StatusSection
+            key={status}
+            status={status}
+            label={label}
+            contacts={list}
+            onAdd={() => openNew(status)}
+            onEdit={openEdit}
+            onDelete={(c) => setDeleting(c)}
+            onPromote={(c) => {
+              const next = promoteStatus(c.status ?? status);
+              if (next) changeStatus(c, next);
+            }}
+            onDemote={(c) => {
+              const next = demoteStatus(c.status ?? status);
+              if (next) changeStatus(c, next);
+            }}
+            onConvert={convertToProposal}
+          />
+        );
+      })}
 
       <Modal
         open={!!editing}
@@ -564,11 +596,10 @@ export default function PipelinePage() {
                     setEditing({ ...editing, status: e.target.value })
                   }
                 >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
+                  <option value="idea">idea</option>
+                  <option value="contacted">contacted</option>
+                  <option value="warm">warm</option>
+                  <option value="no_reply">no_reply</option>
                 </select>
               </div>
               <div className="form-group">
@@ -619,6 +650,8 @@ export default function PipelinePage() {
   );
 }
 
+// ── components ──────────────────────────────────────────────────────
+
 function Kpi({
   label,
   value,
@@ -635,6 +668,352 @@ function Kpi({
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value}</div>
       {hint && <div className="kpi-sub">{hint}</div>}
+    </div>
+  );
+}
+
+function TargetKpi({
+  editing,
+  draft,
+  value,
+  onStart,
+  onChange,
+  onCancel,
+  onSubmit,
+}: {
+  editing: boolean;
+  draft: string;
+  value: number;
+  onStart: () => void;
+  onChange: (s: string) => void;
+  onCancel: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <div className="kpi-card">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--sp-2)",
+        }}
+      >
+        <div className="kpi-label">Target MRR</div>
+        {!editing && (
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onStart}
+            aria-label="Edit target"
+            title="Edit"
+            style={{ width: 22, height: 22, marginTop: "calc(-1 * var(--sp-2))" }}
+          >
+            <Pencil size={12} strokeWidth={1.75} />
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <form
+          onSubmit={onSubmit}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--sp-2)",
+            marginTop: "var(--sp-1)",
+          }}
+        >
+          <span className="mono" style={{ color: "var(--muted)" }}>$</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            autoFocus
+            value={draft}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onCancel();
+              }
+            }}
+            style={{
+              fontSize: "var(--text-xl)",
+              fontWeight: "var(--fw-bold)",
+              padding: "4px 8px",
+            }}
+          />
+          <button
+            type="submit"
+            className="icon-btn"
+            aria-label="Save"
+            title="Save"
+          >
+            <Check size={15} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={onCancel}
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X size={15} strokeWidth={2} />
+          </button>
+        </form>
+      ) : (
+        <>
+          <div className="kpi-value">{currencyCompact(value)}</div>
+          <div className="kpi-sub">monthly goal</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatusSection({
+  status,
+  label,
+  contacts,
+  onAdd,
+  onEdit,
+  onDelete,
+  onPromote,
+  onDemote,
+  onConvert,
+}: {
+  status: string;
+  label: string;
+  contacts: Contact[];
+  onAdd: () => void;
+  onEdit: (c: Contact) => void;
+  onDelete: (c: Contact) => void;
+  onPromote: (c: Contact) => void;
+  onDemote: (c: Contact) => void;
+  onConvert: (c: Contact) => void;
+}) {
+  return (
+    <div style={{ marginBottom: "var(--sp-7)" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "var(--sp-3)",
+          gap: "var(--sp-3)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--sp-3)",
+          }}
+        >
+          <span
+            className={`badge status-${status}`}
+            style={{ fontSize: "var(--text-xs)" }}
+          >
+            {label}
+          </span>
+          <span
+            className="mono"
+            style={{ fontSize: "var(--text-sm)", color: "var(--muted)" }}
+          >
+            {contacts.length} {contacts.length === 1 ? "prospect" : "prospects"}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={onAdd}
+        >
+          <Plus size={14} strokeWidth={2} />
+          Add
+        </button>
+      </div>
+
+      {contacts.length === 0 ? (
+        <div
+          className="card"
+          style={{ padding: "var(--sp-4)", background: "var(--gray-150)" }}
+        >
+          <div className="caption mono">No prospects in {label.toLowerCase()}.</div>
+        </div>
+      ) : (
+        <div className="grid-3">
+          {contacts.map((c) => (
+            <ProspectCard
+              key={c.id}
+              contact={c}
+              onEdit={() => onEdit(c)}
+              onDelete={() => onDelete(c)}
+              onPromote={() => onPromote(c)}
+              onDemote={() => onDemote(c)}
+              onConvert={() => onConvert(c)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProspectCard({
+  contact,
+  onEdit,
+  onDelete,
+  onPromote,
+  onDemote,
+  onConvert,
+}: {
+  contact: Contact;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPromote: () => void;
+  onDemote: () => void;
+  onConvert: () => void;
+}) {
+  const status = contact.status ?? "idea";
+  const canPromote = promoteStatus(status) !== null;
+  const canDemote = demoteStatus(status) !== null;
+  const notes = contact.notes?.split("\n")[0] ?? "";
+
+  return (
+    <div
+      className="card card-sm"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--sp-3)",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontWeight: "var(--fw-semibold)",
+            fontSize: "var(--text-base)",
+          }}
+        >
+          {contact.name ?? "—"}
+        </div>
+        {contact.company && (
+          <div
+            className="caption"
+            style={{ marginTop: "var(--sp-1)" }}
+          >
+            {contact.company}
+          </div>
+        )}
+      </div>
+
+      {(Number(contact.monthly_value ?? 0) > 0 || contact.last_contact) && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "var(--sp-2)",
+          }}
+        >
+          {Number(contact.monthly_value ?? 0) > 0 ? (
+            <span
+              className="mono"
+              style={{
+                fontSize: "var(--text-sm)",
+                fontWeight: "var(--fw-semibold)",
+              }}
+            >
+              {currencyCompact(Number(contact.monthly_value ?? 0))}
+              <span style={{ color: "var(--muted)" }}> /mo</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          {contact.last_contact && (
+            <span
+              className="mono"
+              style={{ fontSize: "var(--fs-11)", color: "var(--muted)" }}
+            >
+              {dateCompact(contact.last_contact)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {notes && (
+        <div
+          className="caption truncate"
+          style={{
+            maxWidth: "100%",
+            fontSize: "var(--text-sm)",
+          }}
+          title={contact.notes ?? undefined}
+        >
+          {notes}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--sp-1)",
+          marginTop: "auto",
+          paddingTop: "var(--sp-2)",
+          borderTop: "1px solid var(--border)",
+          justifyContent: "flex-end",
+        }}
+      >
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onEdit}
+          aria-label="Edit"
+          title="Edit"
+        >
+          <Pencil size={14} strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onPromote}
+          disabled={!canPromote}
+          aria-label="Promote"
+          title={canPromote ? `Promote to ${promoteStatus(status)}` : "Cannot promote"}
+          style={canPromote ? undefined : { opacity: 0.3, cursor: "not-allowed" }}
+        >
+          <ArrowUp size={14} strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onDemote}
+          disabled={!canDemote}
+          aria-label="Demote"
+          title={canDemote ? `Demote to ${demoteStatus(status)}` : "Cannot demote"}
+          style={canDemote ? undefined : { opacity: 0.3, cursor: "not-allowed" }}
+        >
+          <ArrowDown size={14} strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={onConvert}
+          aria-label="Convert to proposal"
+          title="Convert to proposal"
+        >
+          <FilePlus size={14} strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn danger"
+          onClick={onDelete}
+          aria-label="Delete"
+          title="Delete"
+        >
+          <Trash2 size={14} strokeWidth={1.75} />
+        </button>
+      </div>
     </div>
   );
 }
