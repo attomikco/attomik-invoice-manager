@@ -89,6 +89,23 @@ export default async function DashboardPage({
   const statOutstanding = total(outstandingInv);
   const statPipeline = total(draftInv);
 
+  // ── Year-over-year paid revenue comparison ─────────────────────────
+  const prevYear = selectedYear - 1;
+  const prevYearPaid = invoices.filter((i) => {
+    if (i.status !== "paid") return false;
+    const d = parseDate(i.date);
+    return !!d && d.getFullYear() === prevYear;
+  });
+  const statPaidPrev = total(prevYearPaid);
+  const yoyPctRaw =
+    statPaidPrev > 0
+      ? ((statPaid - statPaidPrev) / statPaidPrev) * 100
+      : statPaid > 0
+        ? 100
+        : 0;
+  const yoyPct = Math.round(yoyPctRaw);
+  const yoyUp = yoyPct >= 0;
+
   // ── MRR by month — Jan–Dec of selected year, paid + draft stacked ─
   const paidByMonth = new Map<string, number>();
   const draftByMonth = new Map<string, number>();
@@ -240,6 +257,101 @@ export default async function DashboardPage({
           hint={`${draftInv.length} drafts`}
         />
       </section>
+
+      <div
+        className="card"
+        style={{
+          marginTop: "var(--sp-5)",
+          marginBottom: "var(--sp-5)",
+          padding: "var(--sp-5)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "var(--sp-4)",
+            marginBottom: "var(--sp-4)",
+            paddingBottom: "var(--sp-3)",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          <div className="label mono">Revenue comparison</div>
+          <div
+            className="mono"
+            style={{
+              fontSize: "var(--text-sm)",
+              color: yoyUp
+                ? "var(--brand-green-dark, var(--accent))"
+                : "var(--danger)",
+              fontWeight: "var(--fw-bold)",
+            }}
+          >
+            {yoyUp ? "+" : ""}
+            {yoyPct}% vs last year {yoyUp ? "↑" : "↓"}
+          </div>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "var(--sp-5)",
+          }}
+        >
+          <div>
+            <div className="label mono">{selectedYear}</div>
+            <div
+              className="mono"
+              style={{
+                marginTop: "var(--sp-1)",
+                fontSize: "var(--text-xl)",
+                fontWeight: "var(--fw-bold)",
+              }}
+            >
+              {currency(statPaid, currencyCode)}
+            </div>
+            <div
+              className="caption mono"
+              style={{ marginTop: "var(--sp-1)" }}
+            >
+              {paidInv.length} paid invoice
+              {paidInv.length === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div
+            style={{
+              borderLeft: "1px solid var(--border)",
+              paddingLeft: "var(--sp-5)",
+            }}
+          >
+            <div
+              className="label mono"
+              style={{ color: "var(--muted)" }}
+            >
+              {prevYear}
+            </div>
+            <div
+              className="mono"
+              style={{
+                marginTop: "var(--sp-1)",
+                fontSize: "var(--text-xl)",
+                fontWeight: "var(--fw-bold)",
+                color: "var(--muted)",
+              }}
+            >
+              {currency(statPaidPrev, currencyCode)}
+            </div>
+            <div
+              className="caption mono"
+              style={{ marginTop: "var(--sp-1)" }}
+            >
+              {prevYearPaid.length} paid invoice
+              {prevYearPaid.length === 1 ? "" : "s"}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="section-header">
         <div className="section-header-bar" />
