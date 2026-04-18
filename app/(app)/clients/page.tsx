@@ -90,10 +90,7 @@ export default function ClientsPage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            04 / Clients
-          </div>
-          <h1>Clients.</h1>
+          <h1>Clients</h1>
         </div>
         <button
           className="btn btn-primary"

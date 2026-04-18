@@ -182,10 +182,10 @@ export default function InvoiceForm({
               value={draft.status}
               onChange={(e) => onChange({ ...draft, status: e.target.value })}
             >
-              <option value="draft">draft</option>
-              <option value="sent">sent</option>
-              <option value="paid">paid</option>
-              <option value="overdue">overdue</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
             </select>
           </div>
           <div className="form-group">

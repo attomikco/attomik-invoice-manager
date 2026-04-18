@@ -373,10 +373,7 @@ export default function PipelinePage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            03 / Pipeline
-          </div>
-          <h1>Pipeline.</h1>
+          <h1>Pipeline</h1>
         </div>
         <button
           className="btn btn-primary"

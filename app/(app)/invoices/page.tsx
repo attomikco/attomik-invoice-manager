@@ -78,7 +78,25 @@ export default function InvoicesPage() {
         .order("price", { ascending: true }),
       supabase.from("settings").select("key, value"),
     ]);
-    setInvoices((invs as Invoice[] | null) ?? []);
+    const loaded = (invs as Invoice[] | null) ?? [];
+    const today = dateISO();
+    const toMarkOverdue = loaded.filter(
+      (i) => i.status === "sent" && i.due && i.due < today,
+    );
+    if (toMarkOverdue.length > 0) {
+      await supabase
+        .from("invoices")
+        .update({ status: "overdue" })
+        .in(
+          "id",
+          toMarkOverdue.map((i) => i.id),
+        );
+      const ids = new Set(toMarkOverdue.map((i) => i.id));
+      for (const inv of loaded) {
+        if (ids.has(inv.id)) inv.status = "overdue";
+      }
+    }
+    setInvoices(loaded);
     setClients((cls as Client[] | null) ?? []);
     setServices((svcs as Service[] | null) ?? []);
     const map: SettingsMap = {};
@@ -97,6 +115,14 @@ export default function InvoicesPage() {
 
   const filtered = useMemo(() => {
     if (filter === "all") return invoices;
+    if (filter === "overdue") {
+      const today = dateISO();
+      return invoices.filter(
+        (i) =>
+          i.status === "overdue" ||
+          (i.status === "sent" && !!i.due && i.due < today),
+      );
+    }
     return invoices.filter((i) => (i.status ?? "draft") === filter);
   }, [invoices, filter]);
 
@@ -115,21 +141,57 @@ export default function InvoicesPage() {
   }
 
   function startEdit(inv: Invoice) {
+    const matchClient =
+      (inv.client_email &&
+        clients.find(
+          (c) =>
+            (c.email ?? "").toLowerCase() ===
+            (inv.client_email ?? "").toLowerCase(),
+        )) ||
+      (inv.client_name &&
+        clients.find(
+          (c) =>
+            (c.name ?? "").toLowerCase() ===
+              (inv.client_name ?? "").toLowerCase() &&
+            (c.company ?? "").toLowerCase() ===
+              (inv.client_company ?? "").toLowerCase(),
+        )) ||
+      (inv.client_name &&
+        clients.find(
+          (c) =>
+            (c.name ?? "").toLowerCase() ===
+            (inv.client_name ?? "").toLowerCase(),
+        )) ||
+      null;
+
+    const draftItems =
+      inv.items && inv.items.length > 0
+        ? inv.items.map((li) => {
+            const draftLine = toLineItemDraft(li);
+            if (!draftLine.service_id) {
+              const matched = services.find(
+                (s) =>
+                  (s.name ?? "").toLowerCase() ===
+                  (draftLine.title ?? "").toLowerCase(),
+              );
+              if (matched) draftLine.service_id = matched.id;
+            }
+            return draftLine;
+          })
+        : [{ ...EMPTY_LINE }];
+
     setEditing({
       id: inv.id,
       number: inv.number ?? nextInvoiceNumber(invoices),
       date: inv.date ?? dateISO(),
       due: inv.due ?? dateISO(addDays(new Date(), 15)),
       status: inv.status ?? "draft",
-      client_id: "",
-      client_name: inv.client_name ?? "",
-      client_email: inv.client_email ?? "",
-      client_company: inv.client_company ?? "",
-      client_address: inv.client_address ?? "",
-      items:
-        inv.items && inv.items.length > 0
-          ? inv.items.map(toLineItemDraft)
-          : [{ ...EMPTY_LINE }],
+      client_id: matchClient?.id ?? "",
+      client_name: inv.client_name ?? matchClient?.name ?? "",
+      client_email: inv.client_email ?? matchClient?.email ?? "",
+      client_company: inv.client_company ?? matchClient?.company ?? "",
+      client_address: inv.client_address ?? matchClient?.address ?? "",
+      items: draftItems,
       discount: String(inv.discount ?? 0),
       notes: inv.notes ?? "",
     });
@@ -191,10 +253,7 @@ export default function InvoicesPage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            01 / Invoices
-          </div>
-          <h1>Invoices.</h1>
+          <h1>Invoices</h1>
         </div>
         <button className="btn btn-primary" onClick={startNew}>
           + New invoice

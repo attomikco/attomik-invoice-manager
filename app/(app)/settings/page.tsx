@@ -79,10 +79,7 @@ export default function SettingsPage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            06 / Settings
-          </div>
-          <h1>Settings.</h1>
+          <h1>Settings</h1>
         </div>
         {savedAt && (
           <div

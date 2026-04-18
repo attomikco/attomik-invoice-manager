@@ -6,7 +6,6 @@ import {
   type LineItem,
 } from "@/lib/format";
 import MRRChart from "./mrr-chart";
-import YearSelector from "./year-selector";
 
 type Invoice = {
   id: string;
@@ -21,8 +20,6 @@ type Invoice = {
 };
 
 type Settings = {
-  brand_name?: string;
-  payment_instructions?: string;
   currency?: string;
 };
 
@@ -38,16 +35,10 @@ function invoiceNumberInt(n: string | null): number {
   return m ? parseInt(m[0], 10) : 0;
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams?: { year?: string };
-}) {
+export default async function DashboardPage() {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const yearOptions = [currentYear - 2, currentYear - 1, currentYear];
-  const parsed = parseInt(searchParams?.year ?? "", 10);
-  const selectedYear = yearOptions.includes(parsed) ? parsed : currentYear;
+  const selectedYear = currentYear;
 
   const supabase = createClient();
 
@@ -194,48 +185,19 @@ export default async function DashboardPage({
     })
     .slice(0, 10);
 
-  function buildMailto(inv: Invoice) {
-    if (!inv.client_email) return null;
-    const amount = currency(
-      invoiceTotal(inv.items, inv.discount),
-      currencyCode,
-    );
-    const subject = `Invoice ${inv.number ?? ""} · ${settings.brand_name ?? "Attomik"}`;
-    const body = [
-      `Hi${inv.client_name ? ` ${inv.client_name}` : ""},`,
-      "",
-      `Please find attached invoice ${inv.number ?? ""} for ${amount}.`,
-      `Due: ${dateShort(inv.due)}`,
-      "",
-      settings.payment_instructions ?? "",
-      "",
-      `Thanks,`,
-      settings.brand_name ?? "",
-    ].join("\n");
-    return `mailto:${inv.client_email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }
-
   return (
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            00 / Dashboard
-          </div>
-          <h1>
-            {selectedYear === currentYear ? "Today." : `${selectedYear}.`}
-          </h1>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: "var(--sp-2)",
-          }}
-        >
-          <YearSelector years={yearOptions} selected={selectedYear} />
-          <div className="label mono">
+          <h1>Dashboard</h1>
+          <div
+            className="mono"
+            style={{
+              marginTop: "var(--sp-2)",
+              color: "var(--muted)",
+              fontSize: "var(--text-sm)",
+            }}
+          >
             {now.toLocaleDateString("en-US", {
               weekday: "short",
               month: "short",
@@ -251,6 +213,7 @@ export default async function DashboardPage({
           label="Invoiced"
           value={currency(statInvoiced, currencyCode)}
           hint={`${paidInv.length + outstandingInv.length} invoices · ${selectedYear}`}
+          accent
         />
         <Kpi
           label="Paid"
@@ -261,7 +224,6 @@ export default async function DashboardPage({
           label="Outstanding"
           value={currency(statOutstanding, currencyCode)}
           hint={`${outstandingInv.length} unpaid`}
-          accent
         />
         <Kpi
           label="Pipeline"
@@ -341,107 +303,74 @@ export default async function DashboardPage({
           </div>
         ) : (
           <ul style={{ listStyle: "none" }}>
-            {drafts.map((inv, i) => {
-              const mailto = buildMailto(inv);
-              return (
-                <li
-                  key={inv.id}
+            {drafts.map((inv, i) => (
+              <li
+                key={inv.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "var(--sp-3)",
+                  padding: "var(--sp-3) 0",
+                  borderBottom:
+                    i < drafts.length - 1
+                      ? "1px solid var(--border)"
+                      : "none",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
                     gap: "var(--sp-3)",
-                    padding: "var(--sp-3) 0",
-                    borderBottom:
-                      i < drafts.length - 1
-                        ? "1px solid var(--border)"
-                        : "none",
                     flexWrap: "wrap",
+                    minWidth: 0,
+                    flex: 1,
                   }}
                 >
-                  <div
+                  <span
+                    className="mono"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--sp-3)",
-                      flexWrap: "wrap",
-                      minWidth: 0,
-                      flex: 1,
+                      fontSize: "var(--text-sm)",
+                      color: "var(--muted)",
                     }}
                   >
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--muted)",
-                      }}
-                    >
-                      {inv.number ?? "—"}
-                    </span>
-                    <span
-                      style={{
-                        fontWeight: "var(--fw-semibold)",
-                        fontSize: "var(--text-base)",
-                      }}
-                    >
-                      {inv.client_name ?? "—"}
-                    </span>
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--muted)",
-                      }}
-                    >
-                      Due {dateShort(inv.due)}
-                    </span>
-                  </div>
-                  <div
+                    {inv.number ?? "—"}
+                  </span>
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--sp-3)",
-                      flexShrink: 0,
+                      fontWeight: "var(--fw-semibold)",
+                      fontSize: "var(--text-base)",
                     }}
                   >
-                    <span
-                      className="mono"
-                      style={{
-                        fontWeight: "var(--fw-bold)",
-                        color: "var(--brand-green)",
-                      }}
-                    >
-                      {currency(
-                        invoiceTotal(inv.items, inv.discount),
-                        currencyCode,
-                      )}
-                    </span>
-                    {mailto ? (
-                      <a
-                        className="btn btn-primary btn-xs"
-                        href={mailto}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Send
-                      </a>
-                    ) : (
-                      <span
-                        className="btn btn-ghost btn-xs"
-                        style={{
-                          opacity: 0.5,
-                          cursor: "not-allowed",
-                          pointerEvents: "none",
-                        }}
-                        title="No client email"
-                      >
-                        Send
-                      </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+                    {inv.client_name ?? "—"}
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    Due {dateShort(inv.due)}
+                  </span>
+                </div>
+                <span
+                  className="mono"
+                  style={{
+                    fontWeight: "var(--fw-bold)",
+                    color: "var(--brand-green)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {currency(
+                    invoiceTotal(inv.items, inv.discount),
+                    currencyCode,
+                  )}
+                </span>
+              </li>
+            ))}
           </ul>
         )}
       </section>

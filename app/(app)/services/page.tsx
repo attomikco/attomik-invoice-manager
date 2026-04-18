@@ -73,10 +73,7 @@ export default function ServicesPage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            05 / Services
-          </div>
-          <h1>Services.</h1>
+          <h1>Services</h1>
         </div>
         <button
           className="btn btn-primary"

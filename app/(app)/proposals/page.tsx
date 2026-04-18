@@ -230,10 +230,7 @@ export default function ProposalsPage() {
     <div className="page-content">
       <header className="page-header">
         <div>
-          <div className="label mono" style={{ marginBottom: "var(--sp-2)" }}>
-            02 / Proposals
-          </div>
-          <h1>Proposals.</h1>
+          <h1>Proposals</h1>
         </div>
         <button className="btn btn-primary" onClick={startNew}>
           + New proposal
