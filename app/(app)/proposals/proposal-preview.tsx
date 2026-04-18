@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { currency, dateShort, lineSubtotal } from "@/lib/format";
 import { Modal } from "@/components/modal";
+import PDFDownloadButton from "@/components/pdf-download-button";
 import type { Proposal, SettingsMap } from "@/lib/types";
 
 export default function ProposalPreview({
@@ -35,9 +36,17 @@ export default function ProposalPreview({
       title={`Preview · ${proposal.number ?? "Proposal"}`}
       maxWidth={720}
       footer={
-        <button className="btn btn-ghost" onClick={onClose} type="button">
-          Close
-        </button>
+        <>
+          <button className="btn btn-ghost" onClick={onClose} type="button">
+            Close
+          </button>
+          <PDFDownloadButton
+            type="proposal"
+            data={proposal}
+            settings={settings as Record<string, string | undefined>}
+            label="Download PDF"
+          />
+        </>
       }
     >
       <div
