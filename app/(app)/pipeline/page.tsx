@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, Plus, X } from "lucide-react";
+import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   addDays,
@@ -269,11 +269,16 @@ export default function PipelinePage() {
   async function saveProspect(e: React.FormEvent) {
     e.preventDefault();
     if (!editingProspect) return;
+    const trimmedName = editingProspect.name.trim();
+    if (!trimmedName) {
+      alert("Name is required");
+      return;
+    }
     setSaving(true);
     const payload = {
-      name: editingProspect.name,
-      company: editingProspect.company,
-      email: editingProspect.email,
+      name: trimmedName,
+      company: editingProspect.company.trim(),
+      email: editingProspect.email.trim(),
       status: editingProspect.status,
       stage: editingProspect.stage || null,
       notes: editingProspect.notes,
@@ -530,6 +535,7 @@ export default function PipelinePage() {
                       <tr>
                         <th>Name</th>
                         <th>Company</th>
+                        <th>Status</th>
                         <th className="td-right">Expected /mo</th>
                         <th>Stage</th>
                         <th>Last contact</th>
@@ -542,6 +548,13 @@ export default function PipelinePage() {
                         <tr key={c.id}>
                           <td className="td-strong">{c.name ?? "—"}</td>
                           <td className="td-muted">{c.company ?? "—"}</td>
+                          <td>
+                            <span
+                              className={`badge status-${c.status ?? "idea"}`}
+                            >
+                              {c.status ?? "—"}
+                            </span>
+                          </td>
                           <td className="td-right td-mono">
                             {moneyOrDash(c.monthly_value)}
                           </td>
@@ -578,7 +591,7 @@ export default function PipelinePage() {
                                 className="btn btn-secondary btn-xs"
                                 onClick={() => convertToProposal(c)}
                               >
-                                → Proposal
+                                Create Proposal
                               </button>
                               <button
                                 className="btn btn-danger btn-xs"
@@ -587,6 +600,15 @@ export default function PipelinePage() {
                                 }
                               >
                                 Mark declined
+                              </button>
+                              <button
+                                type="button"
+                                className="icon-btn danger"
+                                onClick={() => setDeleting(c)}
+                                aria-label="Delete prospect"
+                                title="Delete prospect"
+                              >
+                                <Trash2 size={14} strokeWidth={1.75} />
                               </button>
                             </div>
                           </td>
