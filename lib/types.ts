@@ -62,6 +62,14 @@ export type Proposal = {
   phase2_compare: string | null;
   phase2_note: string | null;
   phase2_commitment: string | null;
+  p1_type: string | null;
+  p1_second_store: boolean | null;
+  p1_amazon: boolean | null;
+  p1_tiktok: boolean | null;
+  p1_email_template: boolean | null;
+  p1_total: number | null;
+  p2_bundle: string | null;
+  p2_total: number | null;
   created_at: string | null;
 };
 

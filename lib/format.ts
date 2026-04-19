@@ -87,8 +87,12 @@ function parseMoney(s: string | null | undefined): number {
 }
 
 export function proposalTotal(p: {
+  p1_total?: number | null;
   phase1_price?: string | null;
 }): number {
+  if (p.p1_total != null && Number.isFinite(Number(p.p1_total))) {
+    return Number(p.p1_total);
+  }
   return parseMoney(p.phase1_price);
 }
 

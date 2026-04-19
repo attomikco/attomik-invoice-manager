@@ -17,7 +17,14 @@ import {
   type Proposal,
   type SettingsMap,
 } from "@/lib/types";
-import ProposalForm, { type ProposalDraft } from "./proposal-form";
+import ProposalForm, {
+  type ProposalDraft,
+  type P1Type,
+  type P2Bundle,
+  P1_ADDONS,
+  p1TypeMeta,
+  p2BundleMeta,
+} from "./proposal-form";
 import ProposalPreview from "./proposal-preview";
 
 function nextProposalNumber(existing: { number: string | null }[]) {
@@ -27,6 +34,7 @@ function nextProposalNumber(existing: { number: string | null }[]) {
 function emptyDraft(number: string): ProposalDraft {
   const today = dateISO();
   const valid = dateISO(addDays(new Date(), 30));
+  const meta = p1TypeMeta("new_build");
   return {
     number,
     date: today,
@@ -37,17 +45,27 @@ function emptyDraft(number: string): ProposalDraft {
     client_company: "",
     intro: "",
     notes: "",
-    phase1_title: "",
-    phase1_price: "",
+    p1_type: "new_build",
+    phase1_title: meta.title,
+    phase1_price: `$${meta.price.toLocaleString("en-US")}`,
     phase1_compare: "",
     phase1_note: "",
-    phase1_timeline: "",
-    phase1_payment: "",
-    phase2_title: "",
-    phase2_monthly: "",
+    phase1_timeline: meta.timeline,
+    phase1_payment: meta.payment,
+    p1_second_store: false,
+    p1_amazon: false,
+    p1_tiktok: false,
+    p1_email_template: false,
+    p1_total: meta.price,
+    p2_bundle: "dtc_meta",
+    phase2_title: p2BundleMeta("dtc_meta").label,
+    phase2_monthly: `$${p2BundleMeta("dtc_meta").monthly.toLocaleString(
+      "en-US",
+    )} / mo`,
     phase2_compare: "",
     phase2_note: "",
-    phase2_commitment: "",
+    phase2_commitment: "6 months",
+    p2_total: p2BundleMeta("dtc_meta").monthly,
   };
 }
 
@@ -112,6 +130,8 @@ export default function ProposalsPage() {
   }
 
   function startEdit(p: Proposal) {
+    const p1Type = (p.p1_type as P1Type | null) ?? "new_build";
+    const p2Bundle = (p.p2_bundle as P2Bundle | null) ?? "custom";
     setEditing({
       id: p.id,
       number: p.number ?? nextProposalNumber(proposals),
@@ -123,17 +143,25 @@ export default function ProposalsPage() {
       client_company: p.client_company ?? "",
       intro: p.intro ?? "",
       notes: p.notes ?? "",
+      p1_type: p1Type,
       phase1_title: p.phase1_title ?? "",
       phase1_price: p.phase1_price ?? "",
       phase1_compare: p.phase1_compare ?? "",
       phase1_note: p.phase1_note ?? "",
       phase1_timeline: p.phase1_timeline ?? "",
       phase1_payment: p.phase1_payment ?? "",
+      p1_second_store: !!p.p1_second_store,
+      p1_amazon: !!p.p1_amazon,
+      p1_tiktok: !!p.p1_tiktok,
+      p1_email_template: !!p.p1_email_template,
+      p1_total: Number(p.p1_total ?? 0),
+      p2_bundle: p2Bundle,
       phase2_title: p.phase2_title ?? "",
       phase2_monthly: p.phase2_monthly ?? "",
       phase2_compare: p.phase2_compare ?? "",
       phase2_note: p.phase2_note ?? "",
       phase2_commitment: p.phase2_commitment ?? "",
+      p2_total: Number(p.p2_total ?? 0),
     });
   }
 
@@ -151,17 +179,25 @@ export default function ProposalsPage() {
       client_company: editing.client_company,
       intro: editing.intro,
       notes: editing.notes,
+      p1_type: editing.p1_type,
       phase1_title: editing.phase1_title,
       phase1_price: editing.phase1_price,
       phase1_compare: editing.phase1_compare,
       phase1_note: editing.phase1_note,
       phase1_timeline: editing.phase1_timeline,
       phase1_payment: editing.phase1_payment,
+      p1_second_store: editing.p1_second_store,
+      p1_amazon: editing.p1_amazon,
+      p1_tiktok: editing.p1_tiktok,
+      p1_email_template: editing.p1_email_template,
+      p1_total: editing.p1_total,
+      p2_bundle: editing.p2_bundle,
       phase2_title: editing.phase2_title,
       phase2_monthly: editing.phase2_monthly,
       phase2_compare: editing.phase2_compare,
       phase2_note: editing.phase2_note,
       phase2_commitment: editing.phase2_commitment,
+      p2_total: editing.p2_total,
     };
     if (editing.id) {
       await supabase.from("proposals").update(payload).eq("id", editing.id);
@@ -181,23 +217,109 @@ export default function ProposalsPage() {
   }
 
   async function convertToInvoice(p: Proposal) {
-    const number = nextInvoiceNumber(invoices);
     const today = dateISO();
     const due = dateISO(addDays(new Date(), 15));
-    const payload = {
-      number,
-      date: today,
-      due,
-      status: "draft",
+    const clientFields = {
       client_name: p.client_name,
       client_email: p.client_email,
       client_company: p.client_company,
       client_address: null,
-      items: [],
-      discount: 0,
-      notes: p.notes,
     };
-    await supabase.from("invoices").insert(payload);
+    const p1Type = (p.p1_type as P1Type | null) ?? "new_build";
+
+    if (p1Type === "retainer_only") {
+      const bundleKey = (p.p2_bundle as P2Bundle | null) ?? "custom";
+      const bundleTitle =
+        bundleKey === "custom"
+          ? p.phase2_title ?? "Monthly retainer"
+          : p2BundleMeta(bundleKey).label;
+      const monthly = Number(p.p2_total ?? 0);
+      const number = nextInvoiceNumber(invoices);
+      await supabase.from("invoices").insert({
+        number,
+        date: today,
+        due,
+        status: "draft",
+        ...clientFields,
+        items: [
+          {
+            service_id: null,
+            title: bundleTitle,
+            description: "First month retainer",
+            qty: 1,
+            rate: monthly,
+          },
+        ],
+        discount: 0,
+        notes: p.notes,
+      });
+    } else {
+      const base = p1TypeMeta(p1Type).price;
+      const depositAmount = Math.round(base * 0.6);
+      const finalAmount = base - depositAmount;
+      const isNewBuild = p1Type === "new_build";
+      const depositTitle = isNewBuild
+        ? "DTC Strategy + Store Build — Deposit"
+        : "Growth Layer — Existing Store - Deposit";
+      const finalTitle = isNewBuild
+        ? "DTC Strategy + Store Build — Final Payment"
+        : "Growth Layer — Existing Store - Final Payment";
+
+      const addonItems = P1_ADDONS.filter(
+        (a) => !!(p as unknown as Record<string, unknown>)[a.key],
+      ).map((a) => ({
+        service_id: null,
+        title: a.label,
+        description: "",
+        qty: 1,
+        rate: a.price,
+      }));
+
+      const depositNumber = nextInvoiceNumber(invoices);
+      await supabase.from("invoices").insert({
+        number: depositNumber,
+        date: today,
+        due,
+        status: "draft",
+        ...clientFields,
+        items: [
+          {
+            service_id: null,
+            title: depositTitle,
+            description: "",
+            qty: 1,
+            rate: depositAmount,
+          },
+          ...addonItems,
+        ],
+        discount: 0,
+        notes: "Deposit — due to start",
+      });
+
+      const finalNumber = nextInvoiceNumber([
+        ...invoices,
+        { id: "tmp", number: depositNumber } as Invoice,
+      ]);
+      await supabase.from("invoices").insert({
+        number: finalNumber,
+        date: today,
+        due,
+        status: "draft",
+        ...clientFields,
+        items: [
+          {
+            service_id: null,
+            title: finalTitle,
+            description: "",
+            qty: 1,
+            rate: finalAmount,
+          },
+        ],
+        discount: 0,
+        notes: "Final payment — due on launch",
+      });
+    }
+
     await supabase
       .from("proposals")
       .update({ status: "accepted" })
