@@ -330,7 +330,7 @@ export default function ProposalForm({
         <div className="form-group">
           <label className="form-label">Type</label>
           <div
-            className="grid-3"
+            className="flex-col"
             style={{ gap: "var(--sp-2)", marginTop: "var(--sp-1)" }}
           >
             {P1_TYPES.map((t) => {
@@ -340,41 +340,46 @@ export default function ProposalForm({
                   key={t.key}
                   type="button"
                   onClick={() => onChange(applyP1TypeChange(draft, t.key))}
-                  className={`card${selected ? " card-selected" : ""}`}
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--sp-3)",
+                    width: "100%",
                     textAlign: "left",
                     cursor: "pointer",
                     padding: "var(--sp-3) var(--sp-4)",
-                    background: selected ? "var(--cream)" : "var(--paper)",
-                    borderColor: selected ? "var(--ink)" : "var(--border)",
+                    background: "var(--paper)",
+                    borderColor: selected ? "var(--accent)" : "var(--border)",
                     borderWidth: selected ? 2 : 1,
                     borderStyle: "solid",
                     borderRadius: "var(--r-md)",
                   }}
                 >
-                  <div
+                  <span
+                    aria-hidden
                     style={{
-                      fontWeight: "var(--fw-semibold)",
-                      fontSize: "var(--text-base)",
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      border: `2px solid ${
+                        selected ? "var(--accent)" : "var(--border)"
+                      }`,
+                      background: selected ? "var(--accent)" : "transparent",
+                      flexShrink: 0,
                     }}
-                  >
+                  />
+                  <span style={{ fontWeight: "var(--fw-semibold)" }}>
                     {t.label}
-                  </div>
-                  <div
-                    className="caption"
-                    style={{ marginTop: "var(--sp-1)" }}
-                  >
+                  </span>
+                  <span className="caption" style={{ flex: 1 }}>
                     {t.subtitle}
-                  </div>
-                  <div
+                  </span>
+                  <span
                     className="mono"
-                    style={{
-                      marginTop: "var(--sp-1)",
-                      fontSize: "var(--text-sm)",
-                    }}
+                    style={{ fontWeight: "var(--fw-semibold)" }}
                   >
                     {t.price > 0 ? formatMoney(t.price) : "$0"}
-                  </div>
+                  </span>
                 </button>
               );
             })}
@@ -386,16 +391,17 @@ export default function ProposalForm({
             <label className="form-label">Add-ons</label>
             <div
               className="flex-col"
-              style={{ gap: "var(--sp-2)", marginTop: "var(--sp-1)" }}
+              style={{ gap: "var(--sp-1)", marginTop: "var(--sp-1)" }}
             >
               {P1_ADDONS.map((a) => (
                 <label
                   key={a.key}
-                  className="flex"
                   style={{
-                    gap: "var(--sp-2)",
+                    display: "flex",
                     alignItems: "center",
+                    gap: "var(--sp-2)",
                     cursor: "pointer",
+                    padding: "var(--sp-2) 0",
                   }}
                 >
                   <input
@@ -407,36 +413,51 @@ export default function ProposalForm({
                       )
                     }
                   />
-                  <span>{a.label}</span>
+                  <span style={{ flex: 1 }}>{a.label}</span>
                   <span className="mono caption">
                     +{formatMoney(a.price)}
                   </span>
                 </label>
               ))}
             </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "baseline",
+                gap: "var(--sp-2)",
+                marginTop: "var(--sp-2)",
+                paddingTop: "var(--sp-2)",
+                borderTop: "1px solid var(--border)",
+                fontWeight: "var(--fw-bold)",
+              }}
+            >
+              <span>Phase 1 total:</span>
+              <span className="mono" style={{ color: "var(--accent)" }}>
+                {formatMoney(draft.p1_total || 0)}
+              </span>
+            </div>
           </div>
         )}
 
-        <div
-          className="card"
-          style={{
-            background: "var(--cream)",
-            borderColor: "var(--border)",
-            padding: "var(--sp-4)",
-          }}
-        >
-          <div className="label mono">Phase 1 total</div>
+        {isRetainerOnly && (
           <div
-            className="mono"
             style={{
-              fontSize: "var(--text-xl)",
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "baseline",
+              gap: "var(--sp-2)",
+              paddingTop: "var(--sp-2)",
+              borderTop: "1px solid var(--border)",
               fontWeight: "var(--fw-bold)",
-              marginTop: "var(--sp-1)",
             }}
           >
-            {formatMoney(draft.p1_total || 0)}
+            <span>Phase 1 total:</span>
+            <span className="mono" style={{ color: "var(--accent)" }}>
+              {formatMoney(draft.p1_total || 0)}
+            </span>
           </div>
-        </div>
+        )}
 
         <div className="grid-2">
           <div className="form-group">
