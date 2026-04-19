@@ -53,9 +53,9 @@ export type P1AddonKey =
 
 export const P1_ADDONS: { key: P1AddonKey; label: string; price: number }[] = [
   { key: "p1_second_store", label: "Second store", price: 2000 },
-  { key: "p1_amazon", label: "Amazon channel setup", price: 1000 },
-  { key: "p1_tiktok", label: "TikTok Shop setup", price: 1000 },
-  { key: "p1_email_template", label: "Email master template", price: 1000 },
+  { key: "p1_amazon", label: "Amazon setup", price: 1000 },
+  { key: "p1_tiktok", label: "TikTok Shop", price: 1000 },
+  { key: "p1_email_template", label: "Email template", price: 1000 },
 ];
 
 export type P2Bundle =
@@ -394,21 +394,22 @@ export default function ProposalForm({
               style={{ gap: "var(--sp-1)", marginTop: "var(--sp-1)" }}
             >
               {P1_ADDONS.map((a) => (
-                <div
+                <label
                   key={a.key}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    padding: "var(--sp-2) 0",
+                    padding: "6px 0",
+                    cursor: "pointer",
+                    gap: "8px",
                   }}
                 >
-                  <label
+                  <span
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "var(--sp-2)",
-                      cursor: "pointer",
+                      gap: "8px",
                     }}
                   >
                     <input
@@ -420,12 +421,15 @@ export default function ProposalForm({
                         )
                       }
                     />
-                    <span>{a.label}</span>
-                  </label>
-                  <span className="mono" style={{ color: "var(--muted)" }}>
+                    <span style={{ whiteSpace: "nowrap" }}>{a.label}</span>
+                  </span>
+                  <span
+                    className="mono"
+                    style={{ color: "var(--muted)", whiteSpace: "nowrap" }}
+                  >
                     +{formatMoney(a.price)}
                   </span>
-                </div>
+                </label>
               ))}
             </div>
             <div
