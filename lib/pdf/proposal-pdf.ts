@@ -777,7 +777,9 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y += Math.ceil(tiles.length / 2) * (tileH + 8) + 12;
 
     // Pricing card
-    const p1cardH = p1HasDiscount || prop.phase1_note ? 96 : 78;
+    const hasP1Note = !!String(prop.phase1_note ?? "").trim();
+    const p1cardH =
+      p1HasDiscount && hasP1Note ? 112 : p1HasDiscount || hasP1Note ? 96 : 78;
     setStroke(BORDER);
     doc.setLineWidth(0.5);
     setFill(CREAM);
@@ -806,7 +808,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
       const valY = y + 31 + fSz * 0.72;
       const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
       doc.text(vl, pc[0] + 16, valY);
-      if (i === 0 && (p1HasDiscount || prop.phase1_note)) {
+      if (i === 0 && (p1HasDiscount || hasP1Note)) {
         const lineY = valY + 16;
         let cx = pc[0] + 16;
         if (p1HasDiscount) {
@@ -823,11 +825,13 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
           doc.setFontSize(9);
           setColor(ACCENT_DARK);
           doc.text(`· ${p1DiscountPct}% off`, cx, lineY);
-        } else if (prop.phase1_note) {
+        }
+        if (hasP1Note) {
+          const noteY = p1HasDiscount ? lineY + 14 : lineY;
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(9);
-          setColor(ACCENT_DARK);
-          doc.text(`· ${prop.phase1_note}`, cx, lineY);
+          doc.setFontSize(8.5);
+          setColor(ACCENT);
+          doc.text(`· ${prop.phase1_note}`, pc[0] + 16, noteY);
         }
       }
     });
@@ -903,7 +907,9 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += 20;
 
   // Phase 2 pricing card
-  const p2cardH = prop.phase2_note || p2HasDiscount ? 108 : 90;
+  const hasP2Note = !!String(prop.phase2_note ?? "").trim();
+  const p2cardH =
+    p2HasDiscount && hasP2Note ? 122 : p2HasDiscount || hasP2Note ? 108 : 90;
   const ACCENT_DARK2: RGB = [0, 150, 85];
   setFill(CREAM);
   setStroke(BORDER);
@@ -938,7 +944,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const valY2 = y + 30 + vSz * 0.72;
     const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
     doc.text(vl, pc[0] + 16, valY2);
-    if (i === 0 && (prop.phase2_note || p2HasDiscount)) {
+    if (i === 0 && (hasP2Note || p2HasDiscount)) {
       const lineY = valY2 + 16;
       let cx = pc[0] + 16;
       if (p2HasDiscount) {
@@ -955,11 +961,13 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
         doc.setFontSize(9);
         setColor(ACCENT_DARK2);
         doc.text(`· ${p2DiscountPct}% off`, cx, lineY);
-      } else if (prop.phase2_note) {
+      }
+      if (hasP2Note) {
+        const noteY = p2HasDiscount ? lineY + 14 : lineY;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        setColor(ACCENT_DARK2);
-        doc.text(`· ${prop.phase2_note}`, cx, lineY);
+        doc.setFontSize(8.5);
+        setColor(ACCENT);
+        doc.text(`· ${prop.phase2_note}`, pc[0] + 16, noteY);
       }
     }
     if (i !== 0 && pc[3]) {
