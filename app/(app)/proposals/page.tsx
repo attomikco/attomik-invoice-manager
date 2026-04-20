@@ -9,7 +9,6 @@ import {
   dateShort,
   dateISO,
   addDays,
-  proposalTotal,
   proposalPhase1Net,
   proposalPhase2Net,
   nextInvoiceNumber,
@@ -129,10 +128,22 @@ export default function ProposalsPage() {
       (p) => p.status === "accepted" || p.status === "declined",
     ).length;
     const winRate = closed > 0 ? Math.round((accepted / closed) * 100) : 0;
-    const pipelineValue = proposals
-      .filter((p) => p.status === "sent")
-      .reduce((sum, p) => sum + proposalTotal(p), 0);
-    return { total, sent, winRate, pipelineValue };
+    const sentProposals = proposals.filter((p) => p.status === "sent");
+    const pipelinePhase1 = sentProposals.reduce(
+      (sum, p) => sum + proposalPhase1Net(p),
+      0,
+    );
+    const pipelinePhase2 = sentProposals.reduce(
+      (sum, p) => sum + proposalPhase2Net(p),
+      0,
+    );
+    return {
+      total,
+      sent,
+      winRate,
+      pipelinePhase1,
+      pipelinePhase2,
+    };
   }, [proposals]);
 
   function startNew() {
@@ -401,7 +412,7 @@ export default function ProposalsPage() {
         </div>
       </header>
 
-      <section className="grid-4">
+      <section className="grid-5">
         <Kpi label="Total" value={String(stats.total)} hint="all proposals" />
         <Kpi
           label="Open"
@@ -415,8 +426,13 @@ export default function ProposalsPage() {
           hint="of closed proposals"
         />
         <Kpi
-          label="Pipeline value"
-          value={currency(stats.pipelineValue, currencyCode)}
+          label="Phase 1 pipeline"
+          value={currency(stats.pipelinePhase1, currencyCode)}
+          hint="sent proposals"
+        />
+        <Kpi
+          label="Phase 2 pipeline"
+          value={`${currency(stats.pipelinePhase2, currencyCode)}/mo`}
           hint="sent proposals"
         />
       </section>
