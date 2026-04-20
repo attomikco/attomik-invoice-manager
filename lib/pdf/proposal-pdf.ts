@@ -156,16 +156,49 @@ const DEFAULT_P1_SCOPE_IN: string[] = [
   "Subscription app setup",
   "Third-party app integrations (Klaviyo, etc.)",
   "SEO + AI SEO + Google Search Console",
-  "GA4 + store analytics",
+  "GA4 + Shopify analytics configuration",
 ];
 
 const DEFAULT_P1_SCOPE_OUT: string[] = [
   "Paid advertising (Phase 2)",
   "Third-party app subscription fees",
-  "Theme or template license (~$350, billed separately)",
+  "Shopify theme license (~$350, billed separately)",
   "Product photography or video",
+  "Amazon setup (add-on)",
   "Custom-coded development",
+  "Additional domains or storefronts",
 ];
+
+function buildP1Scope(items: LineItemLike[]): {
+  scopeIn: string[];
+  scopeOut: string[];
+} {
+  const titlesLower = items.map((it) =>
+    String(((it.title ?? it.name ?? "") as string)).toLowerCase(),
+  );
+  const hasSecondStore = titlesLower.some((t) => t.includes("second store"));
+  const hasAmazon = titlesLower.some((t) => t.includes("amazon"));
+  const hasTikTok = titlesLower.some((t) => t.includes("tiktok"));
+  const hasEmailTemplate = titlesLower.some(
+    (t) => t.includes("email master") || t.includes("email template"),
+  );
+
+  const scopeIn = [...DEFAULT_P1_SCOPE_IN];
+  if (hasSecondStore) scopeIn.push("Second Shopify storefront");
+  if (hasAmazon) scopeIn.push("Amazon channel setup");
+  if (hasTikTok) scopeIn.push("TikTok Shop setup");
+  if (hasEmailTemplate) scopeIn.push("Branded email master template");
+
+  let scopeOut = [...DEFAULT_P1_SCOPE_OUT];
+  if (hasAmazon) {
+    scopeOut = scopeOut.filter((s) => s !== "Amazon setup (add-on)");
+  }
+  if (hasSecondStore) {
+    scopeOut = scopeOut.filter((s) => s !== "Additional domains or storefronts");
+  }
+
+  return { scopeIn, scopeOut };
+}
 
 const DEFAULT_P2_ITEMS: [string, string][] = [
   [
@@ -232,12 +265,6 @@ function buildP1Tiles(items: LineItemLike[]): P1Tile[] {
   return [...FIXED_P1_TILES, ...addons];
 }
 
-function itemsToScopeIn(items: LineItemLike[]): string[] {
-  const titles = items
-    .map((it) => ((it.title ?? it.name ?? "") as string).trim())
-    .filter((t) => t.length > 0);
-  return titles.length > 0 ? titles : DEFAULT_P1_SCOPE_IN;
-}
 
 function fmtMoney(n: number): string {
   return `$${(Number(n) || 0).toLocaleString("en-US", {
@@ -714,8 +741,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y += p1cardH + 18;
 
     // Scope
-    const scopeIn = itemsToScopeIn(p1Items);
-    const scopeOut = DEFAULT_P1_SCOPE_OUT;
+    const { scopeIn, scopeOut } = buildP1Scope(p1Items);
 
     label("SCOPE OF WORK", margin, y);
     y += 14;
