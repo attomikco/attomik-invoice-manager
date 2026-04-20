@@ -52,70 +52,132 @@ const P1_INTRO: Record<string, string> = {
     "Your store exists. Now let's make it work harder. This phase audits everything, rebuilds the commercial strategy, and layers in the systems that turn a store into a growth engine.",
 };
 
-const P1_TILES: Record<string, [string, string][]> = {
+type P1Tile = {
+  title: string;
+  description?: string;
+  bullets?: string[];
+};
+
+const P1_TILES: Record<string, P1Tile[]> = {
   new_build: [
-    [
-      "Commercial Strategy",
-      "Pricing architecture, bundle & offer structure, and P&L built for AOV + LTV. Every decision built around your numbers.",
-    ],
-    [
-      "Conversion-Optimized Store",
-      "Built on a proven Shopify framework refined across 12+ CPG brands. Speed, mobile, SEO, and a clear path to purchase on every page.",
-    ],
-    [
-      "Retention & Email",
-      "Welcome to win-back — fully automated before launch. Most agencies set this up after. We don't.",
-    ],
-    [
-      "Technical Foundation",
-      "SEO, AI SEO, analytics, and Search Console configured from day one so organic growth compounds over time.",
-    ],
-    [
-      "Attomik AI Tools",
-      "Full access to our marketing OS — real-time performance across every channel in one dashboard from day one.",
-    ],
+    {
+      title: "Commercial Strategy",
+      bullets: [
+        "Pricing architecture",
+        "Bundle & offer structure",
+        "P&L built for AOV + LTV",
+      ],
+    },
+    {
+      title: "Conversion-Optimized Store",
+      bullets: [
+        "Full website build, conversion-optimized",
+        "Speed, SEO & mobile performance",
+        "Clear path to purchase on every page",
+      ],
+    },
+    {
+      title: "Retention & Email",
+      bullets: [
+        "Welcome to win-back automations",
+        "Subscription setup",
+        "Post-purchase sequences",
+      ],
+    },
+    {
+      title: "Technical Foundation",
+      bullets: [
+        "SEO & AI SEO setup",
+        "Analytics & Search Console",
+        "Performance optimized",
+      ],
+    },
+    {
+      title: "Attomik AI Tools Access",
+      bullets: [
+        "AI dashboard & insights platform",
+        "Marketing OS — all channels in one view",
+        "Real-time performance intelligence",
+      ],
+    },
   ],
   growth_layer: [
-    [
-      "Full Store Audit",
-      "We audit your store end-to-end: conversion rate, speed, UX, offer clarity, and mobile experience — with a prioritized fix list.",
-    ],
-    [
-      "Commercial Strategy",
-      "Pricing architecture, bundle structure, and margin modeling built around your actual numbers and category.",
-    ],
-    [
-      "Email Automation",
-      "Welcome to win-back rebuilt or optimized from scratch. Every flow tuned for your customer journey.",
-    ],
-    [
-      "Technical Foundation",
-      "SEO, AI SEO, GA4, and Search Console properly configured so organic growth compounds from here.",
-    ],
-    [
-      "Attomik AI Tools",
-      "Full access to our marketing OS — real-time performance across every channel from day one.",
-    ],
+    {
+      title: "Full Store Audit",
+      bullets: [
+        "Conversion rate & UX review",
+        "Speed & mobile performance",
+        "Prioritized fix list",
+      ],
+    },
+    {
+      title: "Commercial Strategy",
+      bullets: [
+        "Pricing architecture",
+        "Bundle & offer structure",
+        "P&L built for your category",
+      ],
+    },
+    {
+      title: "Email Automation",
+      bullets: [
+        "Welcome to win-back rebuilt",
+        "Every flow tuned for your journey",
+        "Subscription setup if needed",
+      ],
+    },
+    {
+      title: "Technical Foundation",
+      bullets: [
+        "SEO & AI SEO setup",
+        "GA4 + Search Console configured",
+        "Performance optimized",
+      ],
+    },
+    {
+      title: "Attomik AI Tools Access",
+      bullets: [
+        "AI dashboard & insights platform",
+        "Marketing OS — all channels in one view",
+        "Real-time performance intelligence",
+      ],
+    },
   ],
 };
 
-const P1_ADDON_TILES: Record<P1AddonKey, [string, string]> = {
-  p1_second_store: [
-    "Second Store",
-    "Full build for a second Shopify storefront. Same strategy, separate execution.",
-  ],
-  p1_amazon: [
-    "Amazon Setup",
-    "Account configuration, catalog upload, listing SEO, and brand registry. Ready to sell on day one.",
-  ],
-  p1_tiktok: [
-    "TikTok Shop",
-    "Full TikTok Shop setup: catalog sync, fulfillment configuration, and initial content strategy.",
-  ],
-  p1_email_template: [
-    "Email Template",
-    "Custom branded Klaviyo master template aligned to your brand identity.",
-  ],
+const P1_ADDON_TILES: Record<P1AddonKey, P1Tile> = {
+  p1_second_store: {
+    title: "Second Store",
+    bullets: [
+      "Full Shopify storefront build",
+      "Same commercial strategy",
+      "Separate execution & setup",
+    ],
+  },
+  p1_amazon: {
+    title: "Amazon Setup",
+    bullets: [
+      "Account & catalog configuration",
+      "Listing SEO & brand registry",
+      "Ready to sell on day one",
+    ],
+  },
+  p1_tiktok: {
+    title: "TikTok Shop",
+    bullets: [
+      "Account & catalog sync",
+      "Fulfillment configuration",
+      "Initial content strategy",
+    ],
+  },
+  p1_email_template: {
+    title: "Email Template",
+    bullets: [
+      "Custom branded Klaviyo template",
+      "Header, footer & content blocks",
+      "Aligned to brand identity",
+    ],
+  },
 };
 
 const P1_SCOPE_IN: Record<string, string[]> = {
@@ -675,10 +737,8 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y += 16;
 
     const baseTiles = P1_TILES[p1Type] ?? P1_TILES.new_build;
-    const addonTiles: [string, string][] = activeAddons.map(
-      (k) => P1_ADDON_TILES[k],
-    );
-    const tiles: [string, string][] = [...baseTiles, ...addonTiles];
+    const addonTiles: P1Tile[] = activeAddons.map((k) => P1_ADDON_TILES[k]);
+    const tiles: P1Tile[] = [...baseTiles, ...addonTiles];
 
     const tileW = contentW / 2 - 6;
     const tileH = 82;
@@ -696,16 +756,23 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       setColor(INK);
-      doc.text(d[0], tx + 12, ty + 18);
+      doc.text(d.title, tx + 12, ty + 18);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       setColor(MUTED);
-      const desc = doc.splitTextToSize(d[1], tileW - 24) as string[];
       let by = ty + 33;
-      desc.forEach((line) => {
-        doc.text(line, tx + 12, by);
-        by += 12;
-      });
+      if (d.bullets && d.bullets.length > 0) {
+        d.bullets.forEach((b) => {
+          doc.text(`· ${b}`, tx + 12, by);
+          by += 11;
+        });
+      } else if (d.description) {
+        const desc = doc.splitTextToSize(d.description, tileW - 24) as string[];
+        desc.forEach((line) => {
+          doc.text(line, tx + 12, by);
+          by += 11;
+        });
+      }
     });
     y += Math.ceil(tiles.length / 2) * (tileH + 8) + 12;
 
@@ -943,13 +1010,14 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.setFontSize(7.5);
   setColor(MUTED);
   doc.text("What we build together", margin + 14, y + 34);
-  const p1list: [string, string][] =
+  const p1list: P1Tile[] =
     p1Type === "retainer_only"
       ? [
-          [
-            "No setup phase",
-            "Engagement begins directly with the ongoing retainer below.",
-          ],
+          {
+            title: "No setup phase",
+            description:
+              "Engagement begins directly with the ongoing retainer below.",
+          },
         ]
       : [
           ...(P1_TILES[p1Type] ?? P1_TILES.new_build),
@@ -960,12 +1028,15 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     setColor(INK);
-    doc.text(item[0], margin + 14, iy);
+    doc.text(item.title, margin + 14, iy);
     iy += 12;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     setColor(MUTED);
-    const ls = doc.splitTextToSize(item[1], colW2 - 28) as string[];
+    const body = item.bullets
+      ? item.bullets.join(" · ")
+      : item.description ?? "";
+    const ls = doc.splitTextToSize(body, colW2 - 28) as string[];
     doc.text(ls, margin + 14, iy);
     iy += ls.length * 10 + 8;
   });
