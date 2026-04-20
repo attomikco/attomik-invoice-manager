@@ -22,6 +22,7 @@ import ProposalForm, {
   type P1Type,
   type P2Bundle,
   P1_ADDONS,
+  P2_BUNDLES,
   p1TypeMeta,
   p2BundleMeta,
 } from "./proposal-form";
@@ -132,7 +133,20 @@ export default function ProposalsPage() {
 
   function startEdit(p: Proposal) {
     const p1Type = (p.p1_type as P1Type | null) ?? "new_build";
-    const p2Bundle = (p.p2_bundle as P2Bundle | null) ?? "custom";
+    const knownBundleKeys = P2_BUNDLES.map((b) => b.key) as string[];
+    const rawBundle = p.p2_bundle ?? "";
+    const isKnownBundle = knownBundleKeys.includes(rawBundle);
+    const p2Bundle: P2Bundle = isKnownBundle
+      ? (rawBundle as P2Bundle)
+      : "growth_ads";
+    const p2Meta = p2BundleMeta(p2Bundle);
+    const phase2Title = isKnownBundle
+      ? p.phase2_title ?? ""
+      : p2Meta.label;
+    const phase2Monthly = isKnownBundle
+      ? p.phase2_monthly ?? ""
+      : `$${p2Meta.monthly.toLocaleString("en-US")} / mo`;
+    const p2Total = isKnownBundle ? Number(p.p2_total ?? 0) : p2Meta.monthly;
     setEditing({
       id: p.id,
       number: p.number ?? nextProposalNumber(proposals),
@@ -157,12 +171,12 @@ export default function ProposalsPage() {
       p1_email_template: !!p.p1_email_template,
       p1_total: Number(p.p1_total ?? 0),
       p2_bundle: p2Bundle,
-      phase2_title: p.phase2_title ?? "",
-      phase2_monthly: p.phase2_monthly ?? "",
+      phase2_title: phase2Title,
+      phase2_monthly: phase2Monthly,
       phase2_compare: p.phase2_compare ?? "",
       phase2_note: p.phase2_note ?? "",
       phase2_commitment: p.phase2_commitment ?? "",
-      p2_total: Number(p.p2_total ?? 0),
+      p2_total: p2Total,
       p2_discount: Number(p.p2_discount ?? 0),
     });
   }
