@@ -55,6 +55,99 @@ type P1Tile = {
   bullets?: string[];
 };
 
+const FIXED_P1_TILES: P1Tile[] = [
+  {
+    title: "Commercial Strategy",
+    bullets: [
+      "Pricing architecture",
+      "Bundle & offer structure",
+      "P&L built for AOV + LTV",
+    ],
+  },
+  {
+    title: "Conversion-Optimized Store",
+    bullets: [
+      "Full website build, conversion-optimized",
+      "Speed, SEO & mobile performance",
+      "Clear path to purchase on every page",
+    ],
+  },
+  {
+    title: "Retention & Email",
+    bullets: [
+      "Welcome to win-back automations",
+      "Subscription setup",
+      "Post-purchase sequences",
+    ],
+  },
+  {
+    title: "Technical Foundation",
+    bullets: [
+      "SEO & AI SEO setup",
+      "Analytics & Search Console",
+      "Performance optimized",
+    ],
+  },
+  {
+    title: "Attomik AI Tools Access",
+    bullets: [
+      "AI dashboard & insights platform",
+      "Marketing OS — all channels in one view",
+      "Real-time performance intelligence",
+    ],
+  },
+];
+
+const FIXED_SERVICE_NAMES = new Set<string>(
+  FIXED_P1_TILES.map((t) => t.title.toLowerCase()),
+);
+// Services whose presence in p1_items is covered by the fixed tiles and
+// therefore should not produce an add-on tile.
+const CORE_BUILD_SERVICE_NAMES = new Set<string>([
+  "dtc strategy + store build",
+  "dtc strategy + store build — deposit",
+  "dtc strategy + store build — final payment",
+  "growth layer — existing store",
+  "growth layer — existing store - deposit",
+  "growth layer — existing store - final payment",
+  "core bundle",
+]);
+
+const ADDON_TILE_OVERRIDES: Record<string, P1Tile> = {
+  "second store build": {
+    title: "Second Store",
+    bullets: [
+      "Full DTC store build",
+      "Same commercial strategy",
+      "Separate execution & setup",
+    ],
+  },
+  "amazon channel setup": {
+    title: "Amazon Setup",
+    bullets: [
+      "Account & catalog configuration",
+      "Listing SEO & brand registry",
+      "Ready to sell on day one",
+    ],
+  },
+  "tiktok shop setup": {
+    title: "TikTok Shop",
+    bullets: [
+      "Account & catalog sync",
+      "Fulfillment configuration",
+      "Initial content strategy",
+    ],
+  },
+  "email master template": {
+    title: "Email Template",
+    bullets: [
+      "Custom branded Klaviyo template",
+      "Header, footer & content blocks",
+      "Aligned to brand identity",
+    ],
+  },
+};
+
 const DEFAULT_P1_SCOPE_IN: string[] = [
   "Ecommerce store (one domain)",
   "Full product catalog setup",
@@ -111,23 +204,32 @@ const DEFAULT_P2_SCOPE_OUT: string[] = [
   "Brand identity or packaging",
 ];
 
-function itemsToTiles(items: LineItemLike[]): P1Tile[] {
-  return items.map((it) => {
-    const title = (it.title ?? it.name ?? "Service") as string;
-    const descRaw = (it.description ?? it.desc ?? "") as string;
-    const desc = String(descRaw).trim();
-    if (!desc) {
-      return { title, description: "" };
-    }
-    const bulletLines = desc
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^[•·\-\s]+/, "").trim())
-      .filter((line) => line.length > 0);
-    if (bulletLines.length > 1) {
-      return { title, bullets: bulletLines.slice(0, 4) };
-    }
-    return { title, description: desc };
-  });
+function itemToAddonTile(it: LineItemLike): P1Tile | null {
+  const rawTitle = String((it.title ?? it.name ?? "") as string).trim();
+  if (!rawTitle) return null;
+  const key = rawTitle.toLowerCase();
+  if (CORE_BUILD_SERVICE_NAMES.has(key)) return null;
+  if (FIXED_SERVICE_NAMES.has(key)) return null;
+  const override = ADDON_TILE_OVERRIDES[key];
+  if (override) return override;
+  const descRaw = (it.description ?? it.desc ?? "") as string;
+  const desc = String(descRaw).trim();
+  if (!desc) return { title: rawTitle, description: "" };
+  const bulletLines = desc
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[•·\-\s]+/, "").trim())
+    .filter((line) => line.length > 0);
+  if (bulletLines.length > 1) {
+    return { title: rawTitle, bullets: bulletLines.slice(0, 4) };
+  }
+  return { title: rawTitle, description: desc };
+}
+
+function buildP1Tiles(items: LineItemLike[]): P1Tile[] {
+  const addons = items
+    .map(itemToAddonTile)
+    .filter((t): t is P1Tile => t !== null);
+  return [...FIXED_P1_TILES, ...addons];
 }
 
 function itemsToScopeIn(items: LineItemLike[]): string[] {
@@ -507,8 +609,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y = bodyText(p1Intro, margin, y, contentW);
     y += 16;
 
-    const tiles: P1Tile[] =
-      p1Items.length > 0 ? itemsToTiles(p1Items) : [];
+    const tiles: P1Tile[] = buildP1Tiles(p1Items);
 
     const tileW = contentW / 2 - 6;
     const tileH = 82;
@@ -548,15 +649,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
 
     // Pricing card
     const hasP1Note = !!String(prop.phase1_note ?? "").trim();
-    const p1CompareRaw = parseFloat(
-      String(prop.phase1_compare ?? "").replace(/[^0-9.]/g, ""),
-    );
-    const p1CompareAmt =
-      !isNaN(p1CompareRaw) && p1CompareRaw > 0 && p1CompareRaw !== p1Net
-        ? p1CompareRaw
-        : p1HasDiscount
-          ? p1Base
-          : 0;
+    const p1CompareAmt = p1HasDiscount ? p1Base : 0;
     const p1ShowStrike = p1CompareAmt > 0 && p1Base > 0;
     const p1cardH =
       78 + (p1ShowStrike ? 16 : 0) + (hasP1Note ? 14 : 0);
@@ -830,7 +923,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
             "Engagement begins directly with the ongoing retainer below.",
         },
       ]
-    : itemsToTiles(p1Items);
+    : buildP1Tiles(p1Items);
   const p2list: [string, string][] = DEFAULT_P2_ITEMS;
 
   doc.setFont("helvetica", "normal");
