@@ -244,19 +244,7 @@ function itemToAddonTile(it: LineItemLike): P1Tile | null {
   const key = rawTitle.toLowerCase();
   if (CORE_BUILD_SERVICE_NAMES.has(key)) return null;
   if (FIXED_SERVICE_NAMES.has(key)) return null;
-  const override = ADDON_TILE_OVERRIDES[key];
-  if (override) return override;
-  const descRaw = (it.description ?? it.desc ?? "") as string;
-  const desc = String(descRaw).trim();
-  if (!desc) return { title: rawTitle, description: "" };
-  const bulletLines = desc
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^[•·\-\s]+/, "").trim())
-    .filter((line) => line.length > 0);
-  if (bulletLines.length > 1) {
-    return { title: rawTitle, bullets: bulletLines.slice(0, 4) };
-  }
-  return { title: rawTitle, description: desc };
+  return ADDON_TILE_OVERRIDES[key] ?? null;
 }
 
 function buildP1Tiles(items: LineItemLike[]): P1Tile[] {
