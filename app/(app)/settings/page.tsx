@@ -12,6 +12,13 @@ type SettingsForm = {
   currency: string;
   default_payment_terms: string;
   payment_instructions: string;
+  agreement_default_phase1_payment: string;
+  agreement_default_phase2_payment: string;
+  agreement_default_late_fee: string;
+  agreement_governing_law: string;
+  agreement_legal_entity: string;
+  agreement_email_subject: string;
+  agreement_email_body: string;
 };
 
 const KEYS: (keyof SettingsForm)[] = [
@@ -23,6 +30,13 @@ const KEYS: (keyof SettingsForm)[] = [
   "currency",
   "default_payment_terms",
   "payment_instructions",
+  "agreement_default_phase1_payment",
+  "agreement_default_phase2_payment",
+  "agreement_default_late_fee",
+  "agreement_governing_law",
+  "agreement_legal_entity",
+  "agreement_email_subject",
+  "agreement_email_body",
 ];
 
 const EMPTY: SettingsForm = {
@@ -34,6 +48,13 @@ const EMPTY: SettingsForm = {
   currency: "USD",
   default_payment_terms: "",
   payment_instructions: "",
+  agreement_default_phase1_payment: "",
+  agreement_default_phase2_payment: "",
+  agreement_default_late_fee: "",
+  agreement_governing_law: "",
+  agreement_legal_entity: "",
+  agreement_email_subject: "",
+  agreement_email_body: "",
 };
 
 export default function SettingsPage() {
@@ -192,6 +213,104 @@ export default function SettingsPage() {
                 onChange={(e) => field("payment_instructions", e.target.value)}
                 placeholder="Wire transfer details, Stripe link, ACH info…"
               />
+            </div>
+
+            <div className="section-header" style={{ margin: 0 }}>
+              <div className="section-header-bar" />
+              <div className="section-header-title">Agreements</div>
+              <div className="section-header-line" />
+            </div>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Legal entity</label>
+                <input
+                  value={form.agreement_legal_entity}
+                  onChange={(e) =>
+                    field("agreement_legal_entity", e.target.value)
+                  }
+                  placeholder="Attomik, LLC"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Governing law</label>
+                <input
+                  value={form.agreement_governing_law}
+                  onChange={(e) =>
+                    field("agreement_governing_law", e.target.value)
+                  }
+                  placeholder="State of Delaware, United States"
+                />
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">
+                  Phase 1 default payment schedule
+                </label>
+                <input
+                  value={form.agreement_default_phase1_payment}
+                  onChange={(e) =>
+                    field("agreement_default_phase1_payment", e.target.value)
+                  }
+                  placeholder="50% upon signing, 50% upon delivery"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">
+                  Phase 2 default billing cadence
+                </label>
+                <input
+                  value={form.agreement_default_phase2_payment}
+                  onChange={(e) =>
+                    field("agreement_default_phase2_payment", e.target.value)
+                  }
+                  placeholder="Invoiced monthly on the 1st, due net 15"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Late fee</label>
+              <input
+                value={form.agreement_default_late_fee}
+                onChange={(e) =>
+                  field("agreement_default_late_fee", e.target.value)
+                }
+                placeholder="1.5% per month on overdue balances"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Agreement email subject</label>
+              <input
+                value={form.agreement_email_subject}
+                onChange={(e) =>
+                  field("agreement_email_subject", e.target.value)
+                }
+                placeholder="Welcome to Attomik — Services Agreement for {client_company}"
+              />
+              <div className="caption" style={{ marginTop: "var(--sp-1)" }}>
+                Merge fields: {"{client_name}"}, {"{client_company}"},{" "}
+                {"{agreement_number}"}, {"{phase1_total}"}, {"{phase2_rate}"}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Agreement email body</label>
+              <textarea
+                rows={10}
+                value={form.agreement_email_body}
+                onChange={(e) =>
+                  field("agreement_email_body", e.target.value)
+                }
+                placeholder="Hi {client_name}, ..."
+              />
+              <div className="caption" style={{ marginTop: "var(--sp-1)" }}>
+                Merge fields: {"{client_name}"}, {"{client_company}"},{" "}
+                {"{agreement_number}"}, {"{phase1_total}"}, {"{phase2_rate}"}
+              </div>
             </div>
 
             <div

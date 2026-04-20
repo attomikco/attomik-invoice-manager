@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, FileSignature, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   currency,
@@ -408,6 +408,91 @@ export default function ProposalsPage() {
     router.push("/invoices");
   }
 
+  async function createAgreement(p: Proposal) {
+    const { DEFAULT_KICKOFF_ITEMS } = await import(
+      "@/lib/defaults/kickoff-checklist"
+    );
+    const { DEFAULT_LEGAL_TERMS } = await import("@/lib/defaults/legal-terms");
+
+    const p1Items = Array.isArray(p.p1_items) ? p.p1_items : [];
+    const phase1Items = p1Items
+      .map((it) => {
+        const name = (
+          (it.title ?? it.name ?? "") as string
+        ).trim();
+        if (!name) return null;
+        const qty = Number(it.qty ?? it.quantity ?? 1) || 1;
+        const rate = Number(it.rate ?? it.price ?? 0) || 0;
+        return {
+          name,
+          price: qty * rate,
+          description: ((it.description ?? it.desc ?? "") as string) || "",
+        };
+      })
+      .filter((x): x is { name: string; price: number; description: string } =>
+        x !== null,
+      );
+
+    const p1DiscountAmt = Number(p.p1_discount_amount ?? 0) || 0;
+    const p1Subtotal = phase1Items.reduce((s, it) => s + it.price, 0);
+    const phase1Total = Math.max(0, p1Subtotal - p1DiscountAmt);
+
+    const p2Rate =
+      Number(p.p2_rate ?? 0) || Number(p.p2_total ?? 0) || 0;
+    const p2DiscountAmt = Number(p.p2_discount_amount ?? 0) || 0;
+    const phase2Rate = Math.max(0, p2Rate - p2DiscountAmt);
+
+    const commitmentDigits = String(p.phase2_commitment ?? "").replace(
+      /[^0-9]/g,
+      "",
+    );
+    const phase2Commitment = parseInt(commitmentDigits, 10) || 6;
+
+    const { data: existing } = await supabase
+      .from("agreements")
+      .select("id, number");
+    const nums = (existing ?? []).map((r) => ({
+      number: r.number as string | null,
+    }));
+    const finalNumber = nextInvoiceNumber(nums, "ATMSA").replace(/^#/, "");
+
+    const payload = {
+      number: finalNumber,
+      date: dateISO(),
+      status: "draft",
+      proposal_id: p.id,
+      client_name: p.client_name,
+      client_email: p.client_email,
+      client_company: p.client_company,
+      client_address: null,
+      phase1_items: phase1Items,
+      phase1_total: phase1Total,
+      phase1_timeline: p.phase1_timeline,
+      phase1_payment:
+        settings.agreement_default_phase1_payment ??
+        "50% upon signing, 50% upon delivery",
+      phase2_service: p.phase2_title,
+      phase2_rate: phase2Rate,
+      phase2_commitment: phase2Commitment,
+      phase2_start_date: null,
+      kickoff_items: DEFAULT_KICKOFF_ITEMS,
+      terms: DEFAULT_LEGAL_TERMS,
+      notes: p.notes,
+    };
+
+    const { data: inserted, error } = await supabase
+      .from("agreements")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) {
+      console.error("Create agreement failed:", error);
+      alert(`Create agreement failed: ${error.message}`);
+      return;
+    }
+    router.push(`/agreements?edit=${inserted?.id ?? ""}`);
+  }
+
   return (
     <div className="page-content">
       <header className="page-header">
@@ -533,12 +618,26 @@ export default function ProposalsPage() {
                           <Pencil size={15} strokeWidth={1.75} />
                         </button>
                         {p.status === "accepted" && (
-                          <button
-                            className="btn btn-dark btn-xs"
-                            onClick={() => convertToInvoice(p)}
-                          >
-                            → Invoice
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => createAgreement(p)}
+                              aria-label="Create agreement"
+                              title="Create agreement"
+                            >
+                              <FileSignature
+                                size={15}
+                                strokeWidth={1.75}
+                              />
+                            </button>
+                            <button
+                              className="btn btn-dark btn-xs"
+                              onClick={() => convertToInvoice(p)}
+                            >
+                              → Invoice
+                            </button>
+                          </>
                         )}
                         <button
                           type="button"

@@ -90,7 +90,64 @@ export type SettingsMap = Partial<{
   currency: string;
   default_payment_terms: string;
   payment_instructions: string;
+  agreement_default_phase1_payment: string;
+  agreement_default_phase2_payment: string;
+  agreement_default_late_fee: string;
+  agreement_governing_law: string;
+  agreement_legal_entity: string;
+  agreement_email_subject: string;
+  agreement_email_body: string;
 }>;
+
+export type AgreementStatus =
+  | "draft"
+  | "sent"
+  | "signed"
+  | "active"
+  | "completed"
+  | "cancelled";
+
+export type KickoffItem = {
+  category: string;
+  item: string;
+  required: boolean;
+  provided: boolean;
+  notes?: string;
+};
+
+export type Phase1Item = {
+  name: string;
+  price: number;
+  description?: string;
+};
+
+export type Agreement = {
+  id: string;
+  number: string;
+  date: string;
+  status: AgreementStatus;
+  proposal_id: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  client_company: string | null;
+  client_address: string | null;
+  phase1_items: Phase1Item[];
+  phase1_total: number;
+  phase1_timeline: string | null;
+  phase1_payment: string | null;
+  phase2_service: string | null;
+  phase2_rate: number;
+  phase2_commitment: number;
+  phase2_start_date: string | null;
+  kickoff_items: KickoffItem[];
+  terms: string | null;
+  signed_date: string | null;
+  signed_by_name: string | null;
+  signed_by_title: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export type LineItemDraft = {
   service_id: string;
