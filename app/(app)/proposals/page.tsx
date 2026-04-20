@@ -80,17 +80,24 @@ export default function ProposalsPage() {
     // eslint-disable-next-line no-console
     console.log("[proposals] load() called");
     setLoading(true);
-    const servicesResult = await supabase
+    const { data: servicesData, error: servicesError } = await supabase
       .from("services")
       .select("*")
-      .order("name", { ascending: true });
+      .order("price", { ascending: true });
     // eslint-disable-next-line no-console
     console.log(
-      "[proposals] services raw:",
-      servicesResult.error,
-      servicesResult.data?.length,
-      servicesResult.data?.[0],
+      "[proposals] services fetch:",
+      servicesData?.length,
+      servicesError,
     );
+    if (servicesError) {
+      // eslint-disable-next-line no-console
+      console.error(
+        "[proposals] services fetch error detail:",
+        servicesError.message,
+        servicesError.code,
+      );
+    }
     const [{ data: props }, { data: invs }, { data: stg }] = await Promise.all([
       supabase
         .from("proposals")
@@ -103,17 +110,9 @@ export default function ProposalsPage() {
         .limit(500),
       supabase.from("settings").select("key, value"),
     ]);
-    const svcs = servicesResult.data;
-    const servicesData = (svcs as Service[] | null) ?? [];
-    // eslint-disable-next-line no-console
-    console.log(
-      "[proposals] services loaded:",
-      servicesData.length,
-      servicesData[0],
-    );
     setProposals((props as Proposal[] | null) ?? []);
     setInvoices((invs as Invoice[] | null) ?? []);
-    setServices(servicesData);
+    setServices((servicesData as Service[] | null) ?? []);
     const map: SettingsMap = {};
     for (const row of (stg as { key: string; value: string }[] | null) ?? []) {
       (map as Record<string, string>)[row.key] = row.value;
