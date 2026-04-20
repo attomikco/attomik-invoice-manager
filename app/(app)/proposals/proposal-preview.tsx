@@ -42,9 +42,15 @@ export default function ProposalPreview({
   const showP1Compare =
     !isNaN(p1CompareNum) && p1CompareNum > 0 && p1CompareNum !== p1Net;
 
+  const p2Items = Array.isArray(proposal.p2_items) ? proposal.p2_items : [];
+  const p2HasItems = p2Items.length > 0 && lineSubtotal(p2Items) > 0;
   const p2RateStored = Number(proposal.p2_rate ?? 0) || 0;
   const p2RateFallback = Number(proposal.p2_total ?? 0) || 0;
-  const p2Base = p2RateStored > 0 ? p2RateStored : p2RateFallback;
+  const p2Base = p2HasItems
+    ? lineSubtotal(p2Items)
+    : p2RateStored > 0
+      ? p2RateStored
+      : p2RateFallback;
   const p2DiscountAmtStored = Number(proposal.p2_discount_amount ?? 0) || 0;
   const p2DiscountPctLegacy = Number(proposal.p2_discount ?? 0) || 0;
   const p2DiscountAmt =
@@ -80,7 +86,11 @@ export default function ProposalPreview({
         .filter(Boolean)
         .join(" · ") || "Phase 1"
     : proposal.phase1_title ?? "Phase 1";
-  const p2Title = proposal.phase2_title || "Phase 2 Retainer";
+  const p2Title = p2HasItems
+    ? p2Items.length === 1
+      ? String(p2Items[0].title ?? p2Items[0].name ?? "Monthly Retainer")
+      : "Monthly Retainer"
+    : proposal.phase2_title || "Phase 2 Retainer";
 
   return (
     <Modal
@@ -322,6 +332,27 @@ export default function ProposalPreview({
               >
                 {p2Title}
               </div>
+              {p2HasItems && p2Items.length > 1 && (
+                <ul
+                  className="caption"
+                  style={{
+                    marginTop: "var(--sp-2)",
+                    paddingLeft: "var(--sp-5)",
+                    color: "var(--white-a70)",
+                  }}
+                >
+                  {p2Items.map((it, i) => (
+                    <li key={i}>
+                      {(it.title ?? it.name ?? "Service") as string} ·{" "}
+                      {currencyCompact(
+                        (Number(it.qty ?? it.quantity ?? 1) || 0) *
+                          (Number(it.rate ?? it.price ?? 0) || 0),
+                      )}
+                      /mo
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div
                 style={{
                   marginTop: "var(--sp-2)",

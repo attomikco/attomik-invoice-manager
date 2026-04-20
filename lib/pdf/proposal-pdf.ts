@@ -38,6 +38,7 @@ type Proposal = {
   p1_total?: number | null;
   p1_discount?: number | null;
   p1_discount_amount?: number | null;
+  p2_items?: LineItemLike[] | null;
   p2_rate?: number | null;
   p2_total?: number | null;
   p2_discount?: number | null;
@@ -749,11 +750,28 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   }
 
   // ── PAGE 4: PHASE TWO ───────────────────────────────────────────
+  const p2Items: LineItemLike[] = Array.isArray(prop.p2_items)
+    ? prop.p2_items
+    : [];
+  const p2ItemsSubtotal = lineSubtotal(p2Items);
   const p2RateStored = Number(prop.p2_rate ?? 0) || 0;
   const p2RateFallback = Number(prop.p2_total ?? 0) || 0;
-  const p2BaseAmt = p2RateStored > 0 ? p2RateStored : p2RateFallback;
+  const p2BaseAmt =
+    p2ItemsSubtotal > 0
+      ? p2ItemsSubtotal
+      : p2RateStored > 0
+        ? p2RateStored
+        : p2RateFallback;
   const hasPhase2 = p2BaseAmt > 0;
-  const p2title = prop.phase2_title || DEFAULT_P2_TITLE;
+  const p2FirstItemTitle = p2Items
+    .map((it) => String(((it.title ?? it.name ?? "") as string)).trim())
+    .find((t) => t.length > 0);
+  const p2title =
+    p2ItemsSubtotal > 0
+      ? p2Items.length === 1
+        ? p2FirstItemTitle || DEFAULT_P2_TITLE
+        : "Monthly Retainer"
+      : prop.phase2_title || DEFAULT_P2_TITLE;
   const p2BaseFmt = `${fmtMoney(p2BaseAmt)} / mo`;
   const p2DiscountAmtStored = Number(prop.p2_discount_amount ?? 0) || 0;
   const p2DiscountPctLegacy = Number(prop.p2_discount ?? 0) || 0;

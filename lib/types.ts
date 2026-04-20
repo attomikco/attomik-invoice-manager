@@ -59,6 +59,7 @@ export type Proposal = {
   phase1_timeline: string | null;
   phase1_payment: string | null;
   phase2_title: string | null;
+  p2_items: LineItem[] | null;
   p2_rate: number | null;
   p2_discount: number | null;
   p2_discount_amount: number | null;

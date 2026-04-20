@@ -28,9 +28,8 @@ export type ProposalDraft = {
   phase1_timeline: string;
   phase1_payment: string;
 
+  p2_items: LineItemDraft[];
   phase2_title: string;
-  phase2_service_id: string;
-  p2_rate: number;
   p2_discount_amount: string;
   phase2_compare: string;
   phase2_note: string;
@@ -122,6 +121,15 @@ export default function ProposalForm({
       })),
     );
   }, [draft]);
+  const p2Subtotal = useMemo(() => {
+    if (!draft) return 0;
+    return lineSubtotal(
+      draft.p2_items.map((it) => ({
+        qty: Number(it.qty) || 1,
+        rate: Number(it.rate),
+      })),
+    );
+  }, [draft]);
 
   if (!draft) return null;
 
@@ -132,10 +140,10 @@ export default function ProposalForm({
       ? (p1DiscountAmount / p1Subtotal) * 100
       : 0;
   const p2DiscountAmount = parseFloat(draft.p2_discount_amount || "0") || 0;
-  const p2NetMonthly = Math.max(0, (draft.p2_rate || 0) - p2DiscountAmount);
+  const p2NetMonthly = Math.max(0, p2Subtotal - p2DiscountAmount);
   const p2DiscountPct =
-    (draft.p2_rate || 0) > 0 && p2DiscountAmount > 0
-      ? (p2DiscountAmount / (draft.p2_rate || 0)) * 100
+    p2Subtotal > 0 && p2DiscountAmount > 0
+      ? (p2DiscountAmount / p2Subtotal) * 100
       : 0;
 
   function pickP1Service(i: number, id: string) {
@@ -176,23 +184,41 @@ export default function ProposalForm({
     });
   }
 
-  function pickP2Service(id: string) {
+  function pickP2Service(i: number, id: string) {
     if (!id) {
-      onChange({
-        ...draft!,
-        phase2_service_id: "",
-        phase2_title: "",
-        p2_rate: 0,
-      });
+      const items = draft!.p2_items.map((it, idx) =>
+        idx === i ? { ...EMPTY_LINE } : it,
+      );
+      onChange({ ...draft!, p2_items: items });
       return;
     }
     const s = services.find((x) => x.id === id);
     if (!s) return;
+    const items = draft!.p2_items.map((it, idx) =>
+      idx === i
+        ? {
+            service_id: id,
+            title: s.name ?? "",
+            description: (s.description ?? s.desc ?? "") as string,
+            qty: "1",
+            rate: String(s.price ?? 0),
+          }
+        : it,
+    );
+    onChange({ ...draft!, p2_items: items });
+  }
+
+  function addP2Line() {
     onChange({
       ...draft!,
-      phase2_service_id: id,
-      phase2_title: s.name ?? "",
-      p2_rate: Number(s.price ?? 0) || 0,
+      p2_items: [...draft!.p2_items, { ...EMPTY_LINE }],
+    });
+  }
+
+  function removeP2Line(i: number) {
+    onChange({
+      ...draft!,
+      p2_items: draft!.p2_items.filter((_, idx) => idx !== i),
     });
   }
 
@@ -481,17 +507,47 @@ export default function ProposalForm({
           <div className="section-header-line" />
         </div>
 
-        <select
-          value={draft.phase2_service_id || ""}
-          onChange={(e) => pickP2Service(e.target.value)}
-        >
-          <option value="">— choose service —</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} · {formatMoney(Number(s.price ?? 0))}/mo
-            </option>
+        <div className="flex-col" style={{ gap: "var(--sp-2)" }}>
+          {draft.p2_items.map((it, i) => (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: "var(--sp-3)",
+                alignItems: "center",
+              }}
+            >
+              <select
+                value={it.service_id || ""}
+                onChange={(e) => pickP2Service(i, e.target.value)}
+              >
+                <option value="">— choose service —</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} · {formatMoney(Number(s.price ?? 0))}/mo
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-danger btn-xs"
+                onClick={() => removeP2Line(i)}
+                disabled={draft.p2_items.length === 1}
+              >
+                Remove
+              </button>
+            </div>
           ))}
-        </select>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={addP2Line}
+            style={{ alignSelf: "flex-start" }}
+          >
+            + Add service
+          </button>
+        </div>
 
         <div className="grid-2">
           <div className="form-group">
@@ -550,9 +606,9 @@ export default function ProposalForm({
             }}
           >
             <span>Monthly rate</span>
-            <span className="mono">{formatMoney(draft.p2_rate || 0)}/mo</span>
+            <span className="mono">{formatMoney(p2Subtotal)}/mo</span>
           </div>
-          {p2DiscountAmount > 0 && (draft.p2_rate || 0) > 0 && (
+          {p2DiscountAmount > 0 && p2Subtotal > 0 && (
             <div
               style={{
                 display: "flex",

@@ -9,6 +9,8 @@ import {
   dateISO,
   addDays,
   proposalTotal,
+  proposalPhase1Net,
+  proposalPhase2Net,
   nextInvoiceNumber,
   lineSubtotal,
 } from "@/lib/format";
@@ -51,9 +53,8 @@ function emptyDraft(number: string): ProposalDraft {
     phase1_note: "",
     phase1_timeline: "20 – 45 days",
     phase1_payment: "$5k to start · $3k on launch",
+    p2_items: [{ ...EMPTY_LINE }],
     phase2_title: "",
-    phase2_service_id: "",
-    p2_rate: 0,
     p2_discount_amount: "",
     phase2_compare: "",
     phase2_note: "",
@@ -151,9 +152,31 @@ export default function ProposalsPage() {
       rawItems.length > 0
         ? rawItems.map((it) => toLineItemDraft(it))
         : [{ ...EMPTY_LINE }];
+    const rawP2Items = Array.isArray(p.p2_items) ? p.p2_items : [];
     const p2RateStored = Number(p.p2_rate ?? 0) || 0;
     const p2RateFallback = Number(p.p2_total ?? 0) || 0;
-    const p2Rate = p2RateStored > 0 ? p2RateStored : p2RateFallback;
+    const p2LegacyRate =
+      p2RateStored > 0 ? p2RateStored : p2RateFallback;
+    const p2Items: LineItemDraft[] =
+      rawP2Items.length > 0
+        ? rawP2Items.map((it) => toLineItemDraft(it))
+        : p2LegacyRate > 0
+          ? [
+              {
+                service_id: "",
+                title: p.phase2_title ?? "Monthly Retainer",
+                description: "",
+                qty: "1",
+                rate: String(p2LegacyRate),
+              },
+            ]
+          : [{ ...EMPTY_LINE }];
+    const p2Subtotal = lineSubtotal(
+      p2Items.map((it) => ({
+        qty: Number(it.qty) || 1,
+        rate: Number(it.rate) || 0,
+      })),
+    );
 
     const p1Subtotal = lineSubtotal(
       Array.isArray(p.p1_items) ? p.p1_items : [],
@@ -173,8 +196,8 @@ export default function ProposalsPage() {
     const p2DiscountAmount =
       p2DiscountAmountStored > 0
         ? p2DiscountAmountStored
-        : p2Rate > 0 && p2DiscountPctLegacy > 0
-          ? (p2Rate * p2DiscountPctLegacy) / 100
+        : p2Subtotal > 0 && p2DiscountPctLegacy > 0
+          ? (p2Subtotal * p2DiscountPctLegacy) / 100
           : 0;
     const p2DiscountAmountStr = p2DiscountAmount > 0 ? String(p2DiscountAmount) : "";
 
@@ -195,9 +218,8 @@ export default function ProposalsPage() {
       phase1_note: p.phase1_note ?? "",
       phase1_timeline: p.phase1_timeline ?? "",
       phase1_payment: p.phase1_payment ?? "",
+      p2_items: p2Items,
       phase2_title: p.phase2_title ?? "",
-      phase2_service_id: "",
-      p2_rate: p2Rate,
       p2_discount_amount: p2DiscountAmountStr,
       phase2_compare: p.phase2_compare ?? "",
       phase2_note: p.phase2_note ?? "",
@@ -217,11 +239,18 @@ export default function ProposalsPage() {
       p1Subtotal > 0 && p1DiscountAmt > 0
         ? (p1DiscountAmt / p1Subtotal) * 100
         : 0;
-    const p2Rate = editing.p2_rate ?? 0;
+    const p2Items = editing.p2_items.map((d) => fromLineItemDraft(d));
+    const p2Subtotal = lineSubtotal(p2Items);
     const p2DiscountAmt =
       parseFloat(editing.p2_discount_amount || "0") || 0;
     const p2DiscountPct =
-      p2Rate > 0 && p2DiscountAmt > 0 ? (p2DiscountAmt / p2Rate) * 100 : 0;
+      p2Subtotal > 0 && p2DiscountAmt > 0
+        ? (p2DiscountAmt / p2Subtotal) * 100
+        : 0;
+    const computedPhase2Title =
+      editing.phase2_title?.trim() ||
+      (p2Items.length === 1 ? String(p2Items[0].title ?? "") : "") ||
+      (p2Items.length > 1 ? "Monthly Retainer" : "");
     const payload = {
       number: editing.number,
       date: editing.date,
@@ -240,9 +269,10 @@ export default function ProposalsPage() {
       phase1_note: editing.phase1_note,
       phase1_timeline: editing.phase1_timeline,
       phase1_payment: editing.phase1_payment,
-      phase2_title: editing.phase2_title,
-      p2_rate: p2Rate,
-      p2_total: p2Rate,
+      p2_items: p2Items,
+      phase2_title: computedPhase2Title,
+      p2_rate: p2Subtotal,
+      p2_total: p2Subtotal,
       p2_discount_amount: p2DiscountAmt,
       p2_discount: p2DiscountPct,
       phase2_compare: editing.phase2_compare,
@@ -291,10 +321,21 @@ export default function ProposalsPage() {
         ? (p1DiscountAmt / p1SubtotalVal) * 100
         : Number(p.p1_discount ?? 0) || 0;
 
+    const p2Items = Array.isArray(p.p2_items) ? p.p2_items : [];
+    const p2ItemsSubtotal = lineSubtotal(p2Items);
     const p2RateStored = Number(p.p2_rate ?? 0) || 0;
     const p2RateFallback = Number(p.p2_total ?? 0) || 0;
-    const p2Rate = p2RateStored > 0 ? p2RateStored : p2RateFallback;
+    const p2Rate =
+      p2ItemsSubtotal > 0
+        ? p2ItemsSubtotal
+        : p2RateStored > 0
+          ? p2RateStored
+          : p2RateFallback;
     const p2DiscountAmt = Number(p.p2_discount_amount ?? 0) || 0;
+    const p2DiscountPctForInvoice =
+      p2DiscountAmt > 0 && p2Rate > 0
+        ? (p2DiscountAmt / p2Rate) * 100
+        : Number(p.p2_discount ?? 0) || 0;
     const p2Net =
       p2DiscountAmt > 0
         ? Math.max(0, p2Rate - p2DiscountAmt)
@@ -325,7 +366,24 @@ export default function ProposalsPage() {
     }
 
     if (p2Rate > 0) {
-      const title = p.phase2_title || "Monthly retainer";
+      const p2LineItems =
+        p2Items.length > 0
+          ? p2Items.map((it) => ({
+              service_id: it.service_id ?? null,
+              title: (it.title ?? it.name ?? "Service") as string,
+              description: (it.description ?? it.desc ?? "") as string,
+              qty: Number(it.qty ?? it.quantity ?? 1) || 1,
+              rate: Number(it.rate ?? it.price ?? 0) || 0,
+            }))
+          : [
+              {
+                service_id: null,
+                title: p.phase2_title || "Monthly retainer",
+                description: "First month retainer",
+                qty: 1,
+                rate: p2Rate,
+              },
+            ];
       const p2InvoiceNumber = nextInvoiceNumber([
         ...invoices,
         ...(hasP1 ? [{ id: "tmp", number: null } as Invoice] : []),
@@ -336,16 +394,8 @@ export default function ProposalsPage() {
         due,
         status: "draft",
         ...clientFields,
-        items: [
-          {
-            service_id: null,
-            title,
-            description: "First month retainer",
-            qty: 1,
-            rate: p2Net,
-          },
-        ],
-        discount: 0,
+        items: p2LineItems,
+        discount: p2DiscountPctForInvoice,
         notes: p.notes,
       });
     }
@@ -413,7 +463,8 @@ export default function ProposalsPage() {
                 <th>Client</th>
                 <th>Date</th>
                 <th>Valid until</th>
-                <th className="td-right">Amount</th>
+                <th className="td-right">Phase 1</th>
+                <th className="td-right">Phase 2</th>
                 <th>Status</th>
                 <th className="td-right">Actions</th>
               </tr>
@@ -421,13 +472,13 @@ export default function ProposalsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="td-muted">
+                  <td colSpan={8} className="td-muted">
                     Loading…
                   </td>
                 </tr>
               ) : proposals.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="td-muted">
+                  <td colSpan={8} className="td-muted">
                     No proposals yet.
                   </td>
                 </tr>
@@ -439,7 +490,12 @@ export default function ProposalsPage() {
                     <td className="td-muted">{dateShort(p.date)}</td>
                     <td className="td-muted">{dateShort(p.valid_until)}</td>
                     <td className="td-right td-mono">
-                      {currency(proposalTotal(p), currencyCode)}
+                      {currency(proposalPhase1Net(p), currencyCode)}
+                    </td>
+                    <td className="td-right td-mono">
+                      {proposalPhase2Net(p) > 0
+                        ? `${currency(proposalPhase2Net(p), currencyCode)}/mo`
+                        : "—"}
                     </td>
                     <td>
                       <span className={`badge status-${p.status ?? "draft"}`}>

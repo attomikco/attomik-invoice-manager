@@ -86,17 +86,20 @@ function parseMoney(s: string | null | undefined): number {
   return isNaN(n) ? 0 : n;
 }
 
-export function proposalTotal(p: {
+type ProposalForTotals = {
   p1_items?: LineItem[] | null;
   p1_total?: number | null;
   p1_discount?: number | null;
   p1_discount_amount?: number | null;
   phase1_price?: string | null;
+  p2_items?: LineItem[] | null;
   p2_rate?: number | null;
   p2_total?: number | null;
   p2_discount?: number | null;
   p2_discount_amount?: number | null;
-}): number {
+};
+
+export function proposalPhase1Net(p: ProposalForTotals): number {
   const hasNewItems = Array.isArray(p.p1_items) && p.p1_items.length > 0;
   const p1Base = hasNewItems
     ? lineSubtotal(p.p1_items)
@@ -108,9 +111,14 @@ export function proposalTotal(p: {
     p1Amt > 0
       ? p1Amt
       : p1Base * ((Number(p.p1_discount ?? 0) || 0) / 100);
-  const p1Net = Math.max(0, p1Base - p1Discount);
-  const p2Base =
-    p.p2_rate != null && Number(p.p2_rate) > 0
+  return Math.max(0, p1Base - p1Discount);
+}
+
+export function proposalPhase2Net(p: ProposalForTotals): number {
+  const hasNewItems = Array.isArray(p.p2_items) && p.p2_items.length > 0;
+  const p2Base = hasNewItems
+    ? lineSubtotal(p.p2_items)
+    : p.p2_rate != null && Number(p.p2_rate) > 0
       ? Number(p.p2_rate)
       : Number(p.p2_total ?? 0) || 0;
   const p2Amt = Number(p.p2_discount_amount ?? 0) || 0;
@@ -118,8 +126,11 @@ export function proposalTotal(p: {
     p2Amt > 0
       ? p2Amt
       : p2Base * ((Number(p.p2_discount ?? 0) || 0) / 100);
-  const p2Net = Math.max(0, p2Base - p2Discount);
-  return p1Net + p2Net;
+  return Math.max(0, p2Base - p2Discount);
+}
+
+export function proposalTotal(p: ProposalForTotals): number {
+  return proposalPhase1Net(p) + proposalPhase2Net(p);
 }
 
 export function nextInvoiceNumber(
