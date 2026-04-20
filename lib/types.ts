@@ -53,6 +53,7 @@ export type Proposal = {
   notes: string | null;
   p1_items: LineItem[] | null;
   p1_discount: number | null;
+  p1_discount_amount: number | null;
   phase1_compare: string | null;
   phase1_note: string | null;
   phase1_timeline: string | null;
@@ -60,6 +61,7 @@ export type Proposal = {
   phase2_title: string | null;
   p2_rate: number | null;
   p2_discount: number | null;
+  p2_discount_amount: number | null;
   phase2_compare: string | null;
   phase2_note: string | null;
   phase2_commitment: string | null;

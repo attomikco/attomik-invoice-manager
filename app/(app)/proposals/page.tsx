@@ -46,7 +46,7 @@ function emptyDraft(number: string): ProposalDraft {
     intro: "",
     notes: "",
     p1_items: [{ ...EMPTY_LINE }],
-    p1_discount: 0,
+    p1_discount_amount: "",
     phase1_compare: "10000",
     phase1_note: "",
     phase1_timeline: "20 – 45 days",
@@ -54,7 +54,7 @@ function emptyDraft(number: string): ProposalDraft {
     phase2_title: "",
     phase2_service_id: "",
     p2_rate: 0,
-    p2_discount: 0,
+    p2_discount_amount: "",
     phase2_compare: "",
     phase2_note: "",
     phase2_commitment: "3",
@@ -154,6 +154,30 @@ export default function ProposalsPage() {
     const p2RateStored = Number(p.p2_rate ?? 0) || 0;
     const p2RateFallback = Number(p.p2_total ?? 0) || 0;
     const p2Rate = p2RateStored > 0 ? p2RateStored : p2RateFallback;
+
+    const p1Subtotal = lineSubtotal(
+      Array.isArray(p.p1_items) ? p.p1_items : [],
+    );
+    const p1DiscountAmountStored = Number(p.p1_discount_amount ?? 0) || 0;
+    const p1DiscountPctLegacy = Number(p.p1_discount ?? 0) || 0;
+    const p1DiscountAmount =
+      p1DiscountAmountStored > 0
+        ? p1DiscountAmountStored
+        : p1Subtotal > 0 && p1DiscountPctLegacy > 0
+          ? (p1Subtotal * p1DiscountPctLegacy) / 100
+          : 0;
+    const p1DiscountAmountStr = p1DiscountAmount > 0 ? String(p1DiscountAmount) : "";
+
+    const p2DiscountAmountStored = Number(p.p2_discount_amount ?? 0) || 0;
+    const p2DiscountPctLegacy = Number(p.p2_discount ?? 0) || 0;
+    const p2DiscountAmount =
+      p2DiscountAmountStored > 0
+        ? p2DiscountAmountStored
+        : p2Rate > 0 && p2DiscountPctLegacy > 0
+          ? (p2Rate * p2DiscountPctLegacy) / 100
+          : 0;
+    const p2DiscountAmountStr = p2DiscountAmount > 0 ? String(p2DiscountAmount) : "";
+
     setEditing({
       id: p.id,
       number: p.number ?? nextProposalNumber(proposals),
@@ -166,7 +190,7 @@ export default function ProposalsPage() {
       intro: p.intro ?? "",
       notes: p.notes ?? "",
       p1_items: p1Items,
-      p1_discount: Number(p.p1_discount ?? 0),
+      p1_discount_amount: p1DiscountAmountStr,
       phase1_compare: p.phase1_compare ?? "",
       phase1_note: p.phase1_note ?? "",
       phase1_timeline: p.phase1_timeline ?? "",
@@ -174,7 +198,7 @@ export default function ProposalsPage() {
       phase2_title: p.phase2_title ?? "",
       phase2_service_id: "",
       p2_rate: p2Rate,
-      p2_discount: Number(p.p2_discount ?? 0),
+      p2_discount_amount: p2DiscountAmountStr,
       phase2_compare: p.phase2_compare ?? "",
       phase2_note: p.phase2_note ?? "",
       phase2_commitment: p.phase2_commitment ?? "",
@@ -187,6 +211,17 @@ export default function ProposalsPage() {
     setSaving(true);
     const p1Items = editing.p1_items.map((d) => fromLineItemDraft(d));
     const p1Subtotal = lineSubtotal(p1Items);
+    const p1DiscountAmt =
+      parseFloat(editing.p1_discount_amount || "0") || 0;
+    const p1DiscountPct =
+      p1Subtotal > 0 && p1DiscountAmt > 0
+        ? (p1DiscountAmt / p1Subtotal) * 100
+        : 0;
+    const p2Rate = editing.p2_rate ?? 0;
+    const p2DiscountAmt =
+      parseFloat(editing.p2_discount_amount || "0") || 0;
+    const p2DiscountPct =
+      p2Rate > 0 && p2DiscountAmt > 0 ? (p2DiscountAmt / p2Rate) * 100 : 0;
     const payload = {
       number: editing.number,
       date: editing.date,
@@ -198,16 +233,18 @@ export default function ProposalsPage() {
       intro: editing.intro,
       notes: editing.notes,
       p1_items: p1Items,
-      p1_discount: editing.p1_discount ?? 0,
+      p1_discount_amount: p1DiscountAmt,
+      p1_discount: p1DiscountPct,
       p1_total: p1Subtotal,
       phase1_compare: editing.phase1_compare,
       phase1_note: editing.phase1_note,
       phase1_timeline: editing.phase1_timeline,
       phase1_payment: editing.phase1_payment,
       phase2_title: editing.phase2_title,
-      p2_rate: editing.p2_rate ?? 0,
-      p2_total: editing.p2_rate ?? 0,
-      p2_discount: editing.p2_discount ?? 0,
+      p2_rate: p2Rate,
+      p2_total: p2Rate,
+      p2_discount_amount: p2DiscountAmt,
+      p2_discount: p2DiscountPct,
       phase2_compare: editing.phase2_compare,
       phase2_note: editing.phase2_note,
       phase2_commitment: editing.phase2_commitment,
@@ -246,14 +283,25 @@ export default function ProposalsPage() {
     };
 
     const p1Items = Array.isArray(p.p1_items) ? p.p1_items : [];
-    const p1DiscountPct = Number(p.p1_discount ?? 0) || 0;
-    const hasP1 = p1Items.length > 0 && lineSubtotal(p1Items) > 0;
+    const p1SubtotalVal = lineSubtotal(p1Items);
+    const hasP1 = p1Items.length > 0 && p1SubtotalVal > 0;
+    const p1DiscountAmt = Number(p.p1_discount_amount ?? 0) || 0;
+    const p1DiscountPct =
+      p1DiscountAmt > 0 && p1SubtotalVal > 0
+        ? (p1DiscountAmt / p1SubtotalVal) * 100
+        : Number(p.p1_discount ?? 0) || 0;
 
     const p2RateStored = Number(p.p2_rate ?? 0) || 0;
     const p2RateFallback = Number(p.p2_total ?? 0) || 0;
     const p2Rate = p2RateStored > 0 ? p2RateStored : p2RateFallback;
-    const p2DiscountPct = Number(p.p2_discount ?? 0) || 0;
-    const p2Net = Math.max(0, p2Rate - p2Rate * (p2DiscountPct / 100));
+    const p2DiscountAmt = Number(p.p2_discount_amount ?? 0) || 0;
+    const p2Net =
+      p2DiscountAmt > 0
+        ? Math.max(0, p2Rate - p2DiscountAmt)
+        : (() => {
+            const pct = Number(p.p2_discount ?? 0) || 0;
+            return Math.max(0, p2Rate - p2Rate * (pct / 100));
+          })();
 
     if (hasP1) {
       const depositItems = p1Items.map((it) => ({

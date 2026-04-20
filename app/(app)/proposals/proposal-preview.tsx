@@ -23,11 +23,18 @@ export default function ProposalPreview({
   const p1Base = hasNewItems
     ? lineSubtotal(p1Items)
     : Number(proposal.p1_total ?? 0) || 0;
-  const p1Discount = Number(proposal.p1_discount ?? 0) || 0;
-  const p1HasDiscount = p1Base > 0 && p1Discount > 0;
-  const p1Net = p1HasDiscount
-    ? Math.max(0, p1Base - p1Base * (p1Discount / 100))
-    : p1Base;
+  const p1DiscountAmtStored = Number(proposal.p1_discount_amount ?? 0) || 0;
+  const p1DiscountPctLegacy = Number(proposal.p1_discount ?? 0) || 0;
+  const p1DiscountAmt =
+    p1DiscountAmtStored > 0
+      ? p1DiscountAmtStored
+      : (p1Base * p1DiscountPctLegacy) / 100;
+  const p1HasDiscount = p1Base > 0 && p1DiscountAmt > 0;
+  const p1Net = p1HasDiscount ? Math.max(0, p1Base - p1DiscountAmt) : p1Base;
+  const p1DiscountPctLabel =
+    p1Base > 0 && p1DiscountAmt > 0
+      ? Math.round((p1DiscountAmt / p1Base) * 100)
+      : 0;
 
   const p1CompareNum = parseFloat(
     String(proposal.phase1_compare ?? "").replace(/[^0-9.]/g, ""),
@@ -38,11 +45,18 @@ export default function ProposalPreview({
   const p2RateStored = Number(proposal.p2_rate ?? 0) || 0;
   const p2RateFallback = Number(proposal.p2_total ?? 0) || 0;
   const p2Base = p2RateStored > 0 ? p2RateStored : p2RateFallback;
-  const p2Discount = Number(proposal.p2_discount ?? 0) || 0;
-  const p2HasDiscount = p2Base > 0 && p2Discount > 0;
-  const p2Net = p2HasDiscount
-    ? Math.max(0, p2Base - p2Base * (p2Discount / 100))
-    : p2Base;
+  const p2DiscountAmtStored = Number(proposal.p2_discount_amount ?? 0) || 0;
+  const p2DiscountPctLegacy = Number(proposal.p2_discount ?? 0) || 0;
+  const p2DiscountAmt =
+    p2DiscountAmtStored > 0
+      ? p2DiscountAmtStored
+      : (p2Base * p2DiscountPctLegacy) / 100;
+  const p2HasDiscount = p2Base > 0 && p2DiscountAmt > 0;
+  const p2Net = p2HasDiscount ? Math.max(0, p2Base - p2DiscountAmt) : p2Base;
+  const p2DiscountPctLabel =
+    p2Base > 0 && p2DiscountAmt > 0
+      ? Math.round((p2DiscountAmt / p2Base) * 100)
+      : 0;
 
   const p2CompareNum = parseFloat(
     String(proposal.phase2_compare ?? "").replace(/[^0-9.]/g, ""),
@@ -257,7 +271,7 @@ export default function ProposalPreview({
                     fontWeight: "var(--fw-semibold)",
                   }}
                 >
-                  ({p1Discount}% off)
+                  ({p1DiscountPctLabel}% off)
                 </span>
               )}
               {proposal.phase1_note && (
@@ -350,7 +364,7 @@ export default function ProposalPreview({
                       fontWeight: "var(--fw-semibold)",
                     }}
                   >
-                    ({p2Discount}% off)
+                    ({p2DiscountPctLabel}% off)
                   </span>
                 )}
                 {proposal.phase2_note && (

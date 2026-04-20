@@ -37,9 +37,11 @@ type Proposal = {
   p1_items?: LineItemLike[] | null;
   p1_total?: number | null;
   p1_discount?: number | null;
+  p1_discount_amount?: number | null;
   p2_rate?: number | null;
   p2_total?: number | null;
   p2_discount?: number | null;
+  p2_discount_amount?: number | null;
 };
 
 const DEFAULT_P1_TITLE = "DTC Strategy + Store Build";
@@ -484,11 +486,18 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const p1title =
       prop.phase1_title || firstItemTitle || DEFAULT_P1_TITLE;
     const p1Intro = DEFAULT_P1_INTRO;
-    const p1DiscountPct = Number(prop.p1_discount ?? 0) || 0;
-    const p1HasDiscount = p1Base > 0 && p1DiscountPct > 0;
-    const p1Net = p1HasDiscount
-      ? Math.max(0, p1Base - p1Base * (p1DiscountPct / 100))
-      : p1Base;
+    const p1DiscountAmtStored = Number(prop.p1_discount_amount ?? 0) || 0;
+    const p1DiscountPctLegacy = Number(prop.p1_discount ?? 0) || 0;
+    const p1DiscountAmt =
+      p1DiscountAmtStored > 0
+        ? p1DiscountAmtStored
+        : (p1Base * p1DiscountPctLegacy) / 100;
+    const p1HasDiscount = p1Base > 0 && p1DiscountAmt > 0;
+    const p1Net = p1HasDiscount ? Math.max(0, p1Base - p1DiscountAmt) : p1Base;
+    const p1DiscountPct =
+      p1Base > 0 && p1DiscountAmt > 0
+        ? Math.round((p1DiscountAmt / p1Base) * 100)
+        : 0;
     const p1price = p1Base > 0 ? fmtMoney(p1Net) : "—";
     const p1BaseFmt = fmtMoney(p1Base);
     const p1timeline = prop.phase1_timeline || "20 – 45 days";
@@ -627,11 +636,20 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   const hasPhase2 = p2BaseAmt > 0;
   const p2title = prop.phase2_title || DEFAULT_P2_TITLE;
   const p2BaseFmt = `${fmtMoney(p2BaseAmt)} / mo`;
-  const p2DiscountPct = Number(prop.p2_discount ?? 0) || 0;
-  const p2HasDiscount = p2BaseAmt > 0 && p2DiscountPct > 0;
+  const p2DiscountAmtStored = Number(prop.p2_discount_amount ?? 0) || 0;
+  const p2DiscountPctLegacy = Number(prop.p2_discount ?? 0) || 0;
+  const p2DiscountAmt =
+    p2DiscountAmtStored > 0
+      ? p2DiscountAmtStored
+      : (p2BaseAmt * p2DiscountPctLegacy) / 100;
+  const p2HasDiscount = p2BaseAmt > 0 && p2DiscountAmt > 0;
   const p2NetAmt = p2HasDiscount
-    ? Math.max(0, p2BaseAmt - p2BaseAmt * (p2DiscountPct / 100))
+    ? Math.max(0, p2BaseAmt - p2DiscountAmt)
     : p2BaseAmt;
+  const p2DiscountPct =
+    p2BaseAmt > 0 && p2DiscountAmt > 0
+      ? Math.round((p2DiscountAmt / p2BaseAmt) * 100)
+      : 0;
   const p2monthly = `${fmtMoney(p2NetAmt)} / mo`;
 
   if (hasPhase2) {

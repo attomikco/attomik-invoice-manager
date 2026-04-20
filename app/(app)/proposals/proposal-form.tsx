@@ -22,7 +22,7 @@ export type ProposalDraft = {
   notes: string;
 
   p1_items: LineItemDraft[];
-  p1_discount: number;
+  p1_discount_amount: string;
   phase1_compare: string;
   phase1_note: string;
   phase1_timeline: string;
@@ -31,7 +31,7 @@ export type ProposalDraft = {
   phase2_title: string;
   phase2_service_id: string;
   p2_rate: number;
-  p2_discount: number;
+  p2_discount_amount: string;
   phase2_compare: string;
   phase2_note: string;
   phase2_commitment: string;
@@ -69,6 +69,33 @@ function CurrencyInput({
   );
 }
 
+function DollarInput({
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  value: string;
+  onValueChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder ?? "$0"}
+      value={value}
+      onChange={(e) =>
+        onValueChange(e.target.value.replace(/[^0-9.]/g, ""))
+      }
+      onBlur={(e) => {
+        const raw = e.target.value.replace(/[^0-9.]/g, "");
+        const n = parseFloat(raw);
+        onValueChange(isNaN(n) || n <= 0 ? "" : String(n));
+      }}
+    />
+  );
+}
+
 export default function ProposalForm({
   open,
   draft,
@@ -86,17 +113,11 @@ export default function ProposalForm({
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
 }) {
-  // eslint-disable-next-line no-console
-  console.log(
-    "[proposal-form] services prop:",
-    services?.length,
-    services?.[0],
-  );
   const p1Subtotal = useMemo(() => {
     if (!draft) return 0;
     return lineSubtotal(
       draft.p1_items.map((it) => ({
-        qty: Number(it.qty),
+        qty: Number(it.qty) || 1,
         rate: Number(it.rate),
       })),
     );
@@ -104,22 +125,24 @@ export default function ProposalForm({
 
   if (!draft) return null;
 
-  const p1Discount = Number(draft.p1_discount ?? 0) || 0;
-  const p1NetTotal = Math.max(
-    0,
-    p1Subtotal - p1Subtotal * (p1Discount / 100),
-  );
+  const p1DiscountAmount = parseFloat(draft.p1_discount_amount || "0") || 0;
+  const p1NetTotal = Math.max(0, p1Subtotal - p1DiscountAmount);
+  const p1DiscountPct =
+    p1Subtotal > 0 && p1DiscountAmount > 0
+      ? (p1DiscountAmount / p1Subtotal) * 100
+      : 0;
   const p1CompareNum = parseFloat(
     String(draft.phase1_compare ?? "").replace(/[^0-9.]/g, ""),
   );
   const showP1Compare =
     !isNaN(p1CompareNum) && p1CompareNum > 0 && p1CompareNum !== p1NetTotal;
 
-  const p2Discount = Number(draft.p2_discount ?? 0) || 0;
-  const p2NetMonthly = Math.max(
-    0,
-    (draft.p2_rate || 0) - (draft.p2_rate || 0) * (p2Discount / 100),
-  );
+  const p2DiscountAmount = parseFloat(draft.p2_discount_amount || "0") || 0;
+  const p2NetMonthly = Math.max(0, (draft.p2_rate || 0) - p2DiscountAmount);
+  const p2DiscountPct =
+    (draft.p2_rate || 0) > 0 && p2DiscountAmount > 0
+      ? (p2DiscountAmount / (draft.p2_rate || 0)) * 100
+      : 0;
   const p2CompareNum = parseFloat(
     String(draft.phase2_compare ?? "").replace(/[^0-9.]/g, ""),
   );
@@ -128,26 +151,28 @@ export default function ProposalForm({
     p2CompareNum > 0 &&
     p2CompareNum !== p2NetMonthly;
 
-  function updateP1Line(i: number, patch: Partial<LineItemDraft>) {
-    const items = draft!.p1_items.map((it, idx) =>
-      idx === i ? { ...it, ...patch } : it,
-    );
-    onChange({ ...draft!, p1_items: items });
-  }
-
   function pickP1Service(i: number, id: string) {
     if (!id) {
-      updateP1Line(i, { service_id: "" });
+      const items = draft!.p1_items.map((it, idx) =>
+        idx === i ? { ...EMPTY_LINE } : it,
+      );
+      onChange({ ...draft!, p1_items: items });
       return;
     }
     const s = services.find((x) => x.id === id);
     if (!s) return;
-    updateP1Line(i, {
-      service_id: id,
-      title: s.name ?? "",
-      description: (s.description ?? s.desc ?? "") as string,
-      rate: String(s.price ?? 0),
-    });
+    const items = draft!.p1_items.map((it, idx) =>
+      idx === i
+        ? {
+            service_id: id,
+            title: s.name ?? "",
+            description: (s.description ?? s.desc ?? "") as string,
+            qty: "1",
+            rate: String(s.price ?? 0),
+          }
+        : it,
+    );
+    onChange({ ...draft!, p1_items: items });
   }
 
   function addP1Line() {
@@ -166,7 +191,12 @@ export default function ProposalForm({
 
   function pickP2Service(id: string) {
     if (!id) {
-      onChange({ ...draft!, phase2_service_id: "" });
+      onChange({
+        ...draft!,
+        phase2_service_id: "",
+        phase2_title: "",
+        p2_rate: 0,
+      });
       return;
     }
     const s = services.find((x) => x.id === id);
@@ -297,120 +327,56 @@ export default function ProposalForm({
           <div className="section-header-line" />
         </div>
 
-        <div className="flex-col" style={{ gap: "var(--sp-3)" }}>
+        <div className="flex-col" style={{ gap: "var(--sp-2)" }}>
           {draft.p1_items.map((it, i) => {
-            const qty = Number(it.qty) || 0;
             const rate = Number(it.rate) || 0;
+            const name = (it.title ?? "") as string;
             return (
               <div
                 key={i}
-                className="card-sm"
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr auto",
                   gap: "var(--sp-3)",
+                  alignItems: "center",
+                  padding: "var(--sp-2) var(--sp-3)",
                   background: "var(--gray-150)",
                   border: "1px solid var(--border)",
+                  borderRadius: "var(--r-sm)",
                 }}
               >
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Service</label>
-                    <select
-                      value={it.service_id}
-                      onChange={(e) => pickP1Service(i, e.target.value)}
-                    >
-                      <option value="">— choose service —</option>
-                      {(() => {
-                        // eslint-disable-next-line no-console
-                        console.log(
-                          "[proposal-form] rendering service options:",
-                          services?.map((s) => s.name),
-                        );
-                        return services.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} · {formatMoney(Number(s.price ?? 0))}
-                          </option>
-                        ));
-                      })()}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Title</label>
-                    <input
-                      value={it.title}
-                      onChange={(e) =>
-                        updateP1Line(i, { title: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    rows={2}
-                    value={it.description}
-                    onChange={(e) =>
-                      updateP1Line(i, { description: e.target.value })
-                    }
-                  />
-                </div>
+                <select
+                  value={it.service_id || ""}
+                  onChange={(e) => pickP1Service(i, e.target.value)}
+                >
+                  <option value="">— choose service —</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} · {formatMoney(Number(s.price ?? 0))}
+                    </option>
+                  ))}
+                </select>
                 <div
+                  className="caption mono"
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "100px 160px 1fr auto",
-                    gap: "var(--sp-3)",
-                    alignItems: "end",
+                    color: it.service_id ? "var(--ink)" : "var(--muted)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
-                  <div className="form-group">
-                    <label className="form-label">Qty</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={it.qty}
-                      onChange={(e) =>
-                        updateP1Line(i, { qty: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Rate</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={it.rate}
-                      onChange={(e) =>
-                        updateP1Line(i, { rate: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Line total</label>
-                    <div
-                      className="mono"
-                      style={{
-                        padding: "10px var(--sp-3)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--r-sm)",
-                        background: "var(--paper)",
-                        fontWeight: "var(--fw-semibold)",
-                      }}
-                    >
-                      {formatMoney(qty * rate)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-sm"
-                    onClick={() => removeP1Line(i)}
-                    disabled={draft.p1_items.length === 1}
-                  >
-                    Remove
-                  </button>
+                  {it.service_id
+                    ? `${name} — ${formatMoney(rate)}`
+                    : "no service selected"}
                 </div>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-xs"
+                  onClick={() => removeP1Line(i)}
+                  disabled={draft.p1_items.length === 1}
+                >
+                  Remove
+                </button>
               </div>
             );
           })}
@@ -426,20 +392,13 @@ export default function ProposalForm({
 
         <div className="grid-3">
           <div className="form-group">
-            <label className="form-label">Discount %</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={draft.p1_discount ?? 0}
-              onChange={(e) => {
-                const raw = parseFloat(e.target.value);
-                const clamped = isNaN(raw)
-                  ? 0
-                  : Math.min(100, Math.max(0, raw));
-                onChange({ ...draft, p1_discount: clamped });
-              }}
+            <label className="form-label">Discount amount ($)</label>
+            <DollarInput
+              value={draft.p1_discount_amount}
+              onValueChange={(v) =>
+                onChange({ ...draft, p1_discount_amount: v })
+              }
+              placeholder="$0"
             />
           </div>
           <div className="form-group">
@@ -508,7 +467,7 @@ export default function ProposalForm({
             <span>Subtotal</span>
             <span className="mono">{formatMoney(p1Subtotal)}</span>
           </div>
-          {p1Discount > 0 && p1Subtotal > 0 && (
+          {p1DiscountAmount > 0 && p1Subtotal > 0 && (
             <div
               style={{
                 display: "flex",
@@ -516,10 +475,8 @@ export default function ProposalForm({
                 color: "var(--muted)",
               }}
             >
-              <span>Discount ({p1Discount}%)</span>
-              <span className="mono">
-                −{formatMoney(p1Subtotal - p1NetTotal)}
-              </span>
+              <span>Discount ({p1DiscountPct.toFixed(0)}%)</span>
+              <span className="mono">−{formatMoney(p1DiscountAmount)}</span>
             </div>
           )}
           <div
@@ -580,63 +537,63 @@ export default function ProposalForm({
           <div className="section-header-line" />
         </div>
 
-        <div className="grid-2">
-          <div className="form-group">
-            <label className="form-label">Service</label>
-            <select
-              value={draft.phase2_service_id}
-              onChange={(e) => pickP2Service(e.target.value)}
-            >
-              <option value="">— choose service —</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} · {formatMoney(Number(s.price ?? 0))}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Title</label>
-            <input
-              value={draft.phase2_title}
-              onChange={(e) =>
-                onChange({ ...draft, phase2_title: e.target.value })
-              }
-            />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "var(--sp-3)",
+            alignItems: "center",
+            padding: "var(--sp-2) var(--sp-3)",
+            background: "var(--gray-150)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-sm)",
+          }}
+        >
+          <select
+            value={draft.phase2_service_id || ""}
+            onChange={(e) => pickP2Service(e.target.value)}
+          >
+            <option value="">— choose service —</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} · {formatMoney(Number(s.price ?? 0))}/mo
+              </option>
+            ))}
+          </select>
+          <div
+            className="caption mono"
+            style={{
+              color: draft.phase2_service_id ? "var(--ink)" : "var(--muted)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {draft.phase2_service_id
+              ? `${draft.phase2_title} — ${formatMoney(draft.p2_rate || 0)}/mo`
+              : "no service selected"}
           </div>
         </div>
 
         <div className="grid-3">
           <div className="form-group">
-            <label className="form-label">Monthly rate</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={draft.p2_rate}
-              onChange={(e) =>
-                onChange({
-                  ...draft,
-                  p2_rate: Number(e.target.value) || 0,
-                })
+            <label className="form-label">Discount amount ($)</label>
+            <DollarInput
+              value={draft.p2_discount_amount}
+              onValueChange={(v) =>
+                onChange({ ...draft, p2_discount_amount: v })
               }
+              placeholder="$0"
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Discount %</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={1}
-              value={draft.p2_discount ?? 0}
-              onChange={(e) => {
-                const raw = parseFloat(e.target.value);
-                const clamped = isNaN(raw)
-                  ? 0
-                  : Math.min(100, Math.max(0, raw));
-                onChange({ ...draft, p2_discount: clamped });
-              }}
+            <label className="form-label">Standard Rate</label>
+            <CurrencyInput
+              value={draft.phase2_compare}
+              onValueChange={(v) =>
+                onChange({ ...draft, phase2_compare: v })
+              }
+              placeholder="e.g. $5,000"
             />
           </div>
           <div className="form-group">
@@ -655,27 +612,15 @@ export default function ProposalForm({
           </div>
         </div>
 
-        <div className="grid-2">
-          <div className="form-group">
-            <label className="form-label">Standard Rate</label>
-            <CurrencyInput
-              value={draft.phase2_compare}
-              onValueChange={(v) =>
-                onChange({ ...draft, phase2_compare: v })
-              }
-              placeholder="e.g. $5,000"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Rate Note</label>
-            <input
-              value={draft.phase2_note}
-              onChange={(e) =>
-                onChange({ ...draft, phase2_note: e.target.value })
-              }
-              placeholder="e.g. Early Stage Rate"
-            />
-          </div>
+        <div className="form-group">
+          <label className="form-label">Rate Note</label>
+          <input
+            value={draft.phase2_note}
+            onChange={(e) =>
+              onChange({ ...draft, phase2_note: e.target.value })
+            }
+            placeholder="e.g. Early Stage Rate"
+          />
         </div>
 
         <div
@@ -699,7 +644,7 @@ export default function ProposalForm({
             <span>Monthly rate</span>
             <span className="mono">{formatMoney(draft.p2_rate || 0)}/mo</span>
           </div>
-          {p2Discount > 0 && (draft.p2_rate || 0) > 0 && (
+          {p2DiscountAmount > 0 && (draft.p2_rate || 0) > 0 && (
             <div
               style={{
                 display: "flex",
@@ -707,10 +652,8 @@ export default function ProposalForm({
                 color: "var(--muted)",
               }}
             >
-              <span>Discount ({p2Discount}%)</span>
-              <span className="mono">
-                −{formatMoney((draft.p2_rate || 0) - p2NetMonthly)}/mo
-              </span>
+              <span>Discount ({p2DiscountPct.toFixed(0)}%)</span>
+              <span className="mono">−{formatMoney(p2DiscountAmount)}/mo</span>
             </div>
           )}
           <div
