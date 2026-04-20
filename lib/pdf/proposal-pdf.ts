@@ -484,7 +484,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const measure = (items: string[], fontSize: number) => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(fontSize);
-      const rowH = fontSize <= 7 ? 9 : 11;
+      const rowH = fontSize <= 7.35 ? 10 : 12;
       const wrapped = items.map(
         (item) => doc.splitTextToSize(item, colW - 28) as string[],
       );
@@ -492,12 +492,12 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
       return { wrapped, total, rowH };
     };
 
-    let fontSize = 9;
+    let fontSize = 9.45;
     let ins = measure(inItems, fontSize);
     let outs = measure(outItems, fontSize);
     let boxH = Math.max(ins.total, outs.total) + topPad + botPad;
     if (boxH > availH) {
-      fontSize = 7;
+      fontSize = 7.35;
       ins = measure(inItems, fontSize);
       outs = measure(outItems, fontSize);
       boxH = Math.max(ins.total, outs.total) + topPad + botPad;
