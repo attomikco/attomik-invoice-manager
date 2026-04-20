@@ -21,6 +21,8 @@ type Proposal = {
   phase2_compare: string | null;
   phase2_note: string | null;
   phase2_commitment: string | null;
+  p2_total?: number | null;
+  p2_discount?: number | null;
 };
 
 type Settings = {
@@ -489,13 +491,23 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.addPage();
   y = 80;
   const p2title = prop.phase2_title || "Growth + Ads Bundle";
-  const p2monthlyRaw = prop.phase2_monthly || "$4,000 / mo";
+  const p2monthlyRaw = prop.phase2_monthly || "$5,000 / mo";
   const p2mNum = parseFloat(String(p2monthlyRaw).replace(/[^0-9.]/g, ""));
-  const p2monthly = isNaN(p2mNum)
+  const p2BaseFmt = isNaN(p2mNum)
     ? p2monthlyRaw
     : `$${p2mNum.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${
         /\/\s*mo/i.test(p2monthlyRaw) ? " / mo" : ""
       }`;
+  const p2BaseAmt = Number(prop.p2_total ?? 0) || (isNaN(p2mNum) ? 0 : p2mNum);
+  const p2DiscountPct = Number(prop.p2_discount ?? 0) || 0;
+  const p2HasDiscount = p2BaseAmt > 0 && p2DiscountPct > 0;
+  const p2NetAmt = p2HasDiscount
+    ? Math.max(0, p2BaseAmt - p2BaseAmt * (p2DiscountPct / 100))
+    : p2BaseAmt;
+  const p2NetFmt = p2HasDiscount
+    ? `$${p2NetAmt.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / mo`
+    : p2BaseFmt;
+  const p2monthly = p2NetFmt;
 
   y = sectionHeader("Phase Two", p2title, y);
   y = bodyText(
@@ -545,7 +557,8 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += 20;
 
   // Phase 2 pricing card
-  const p2cardH = prop.phase2_compare || prop.phase2_note ? 108 : 90;
+  const p2cardH =
+    prop.phase2_compare || prop.phase2_note || p2HasDiscount ? 108 : 90;
   const ACCENT_DARK2: RGB = [0, 150, 85];
   setFill(CREAM);
   setStroke(BORDER);
@@ -575,10 +588,27 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const valY2 = y + 30 + vSz * 0.72;
     const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
     doc.text(vl, pc[0] + 16, valY2);
-    if (i === 0 && (prop.phase2_compare || prop.phase2_note)) {
+    if (
+      i === 0 &&
+      (prop.phase2_compare || prop.phase2_note || p2HasDiscount)
+    ) {
       const lineY = valY2 + 16;
       let cx = pc[0] + 16;
-      if (prop.phase2_compare) {
+      if (p2HasDiscount) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        setColor(MUTED);
+        doc.text(p2BaseFmt, cx, lineY);
+        const w = doc.getTextWidth(p2BaseFmt);
+        setStroke(MUTED);
+        doc.setLineWidth(0.6);
+        doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
+        cx += w + 8;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        setColor(ACCENT_DARK2);
+        doc.text(`· ${p2DiscountPct}% off`, cx, lineY);
+      } else if (prop.phase2_compare) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         setColor(MUTED);
@@ -588,8 +618,13 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
         doc.setLineWidth(0.6);
         doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
         cx += w + 8;
-      }
-      if (prop.phase2_note) {
+        if (prop.phase2_note) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          setColor(ACCENT_DARK2);
+          doc.text(`· ${prop.phase2_note}`, cx, lineY);
+        }
+      } else if (prop.phase2_note) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         setColor(ACCENT_DARK2);

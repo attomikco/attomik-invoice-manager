@@ -89,11 +89,17 @@ function parseMoney(s: string | null | undefined): number {
 export function proposalTotal(p: {
   p1_total?: number | null;
   phase1_price?: string | null;
+  p2_total?: number | null;
+  p2_discount?: number | null;
 }): number {
-  if (p.p1_total != null && Number.isFinite(Number(p.p1_total))) {
-    return Number(p.p1_total);
-  }
-  return parseMoney(p.phase1_price);
+  const p1 =
+    p.p1_total != null && Number.isFinite(Number(p.p1_total))
+      ? Number(p.p1_total)
+      : parseMoney(p.phase1_price);
+  const p2Base = Number(p.p2_total ?? 0) || 0;
+  const discount = Number(p.p2_discount ?? 0) || 0;
+  const p2Net = Math.max(0, p2Base - p2Base * (discount / 100));
+  return p1 + p2Net;
 }
 
 export function nextInvoiceNumber(

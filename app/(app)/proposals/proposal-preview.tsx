@@ -1,6 +1,6 @@
 "use client";
 
-import { dateShort } from "@/lib/format";
+import { currencyCompact, dateShort } from "@/lib/format";
 import { Modal } from "@/components/modal";
 import PDFDownloadButton from "@/components/pdf-download-button";
 import type { Proposal, SettingsMap } from "@/lib/types";
@@ -17,6 +17,13 @@ export default function ProposalPreview({
   onClose: () => void;
 }) {
   if (!proposal) return null;
+
+  const p2Base = Number(proposal.p2_total ?? 0) || 0;
+  const p2Discount = Number(proposal.p2_discount ?? 0) || 0;
+  const p2HasDiscount = p2Base > 0 && p2Discount > 0;
+  const p2Net = p2HasDiscount
+    ? Math.max(0, p2Base - p2Base * (p2Discount / 100))
+    : p2Base;
 
   return (
     <Modal
@@ -242,8 +249,34 @@ export default function ProposalPreview({
                   color: "var(--accent)",
                 }}
               >
-                {proposal.phase2_monthly ?? "—"}
+                {p2HasDiscount
+                  ? `${currencyCompact(p2Net)} / mo`
+                  : proposal.phase2_monthly ?? "—"}
               </span>
+              {p2HasDiscount && (
+                <>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--white-a50)",
+                      textDecoration: "line-through",
+                    }}
+                  >
+                    {currencyCompact(p2Base)}
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--accent)",
+                      fontWeight: "var(--fw-semibold)",
+                    }}
+                  >
+                    ({p2Discount}% off)
+                  </span>
+                </>
+              )}
               {proposal.phase2_compare && (
                 <span
                   className="mono"

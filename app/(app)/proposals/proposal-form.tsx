@@ -59,23 +59,19 @@ export const P1_ADDONS: { key: P1AddonKey; label: string; price: number }[] = [
 ];
 
 export type P2Bundle =
-  | "dtc_meta"
-  | "dtc_amazon"
-  | "dtc_meta_amazon"
-  | "dtc_meta_amazon_tiktok"
+  | "growth_ads"
+  | "growth_ads_search"
   | "full_scale"
   | "full_creative"
   | "fractional"
   | "custom";
 
 export const P2_BUNDLES: { key: P2Bundle; label: string; monthly: number }[] = [
-  { key: "dtc_meta", label: "DTC + Meta Bundle", monthly: 4000 },
-  { key: "dtc_amazon", label: "DTC + Amazon Bundle", monthly: 5000 },
-  { key: "dtc_meta_amazon", label: "DTC + Meta + Amazon Bundle", monthly: 6000 },
+  { key: "growth_ads", label: "Growth + Ads Bundle", monthly: 5000 },
   {
-    key: "dtc_meta_amazon_tiktok",
-    label: "DTC + Meta + Amazon + TikTok Bundle",
-    monthly: 7000,
+    key: "growth_ads_search",
+    label: "Growth + Ads + Search Bundle",
+    monthly: 6000,
   },
   { key: "full_scale", label: "Full-Scale Ecom Growth Bundle", monthly: 8000 },
   { key: "full_creative", label: "Full Creative Growth Bundle", monthly: 8000 },
@@ -125,6 +121,7 @@ export type ProposalDraft = {
   phase2_note: string;
   phase2_commitment: string;
   p2_total: number;
+  p2_discount: number;
 };
 
 function computeP1Total(draft: ProposalDraft): number {
@@ -208,6 +205,11 @@ export default function ProposalForm({
 
   const isRetainerOnly = draft.p1_type === "retainer_only";
   const isCustomBundle = draft.p2_bundle === "custom";
+  const p2Discount = Number(draft.p2_discount ?? 0) || 0;
+  const p2NetMonthly = Math.max(
+    0,
+    (draft.p2_total || 0) - (draft.p2_total || 0) * (p2Discount / 100),
+  );
 
   return (
     <Modal
@@ -566,6 +568,30 @@ export default function ProposalForm({
             </div>
           </div>
         )}
+
+        <div className="form-group">
+          <label className="form-label">Discount %</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={draft.p2_discount ?? 0}
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value);
+              const clamped = isNaN(raw) ? 0 : Math.min(100, Math.max(0, raw));
+              onChange({ ...draft, p2_discount: clamped });
+            }}
+          />
+          {p2Discount > 0 && (draft.p2_total || 0) > 0 && (
+            <div
+              className="caption"
+              style={{ marginTop: "var(--sp-1)" }}
+            >
+              Net: {formatMoney(p2NetMonthly)}/mo
+            </div>
+          )}
+        </div>
 
         <div className="grid-3">
           <div className="form-group">

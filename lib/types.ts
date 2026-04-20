@@ -70,6 +70,7 @@ export type Proposal = {
   p1_total: number | null;
   p2_bundle: string | null;
   p2_total: number | null;
+  p2_discount: number | null;
   created_at: string | null;
 };
 

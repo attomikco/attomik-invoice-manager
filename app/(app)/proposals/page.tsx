@@ -57,15 +57,16 @@ function emptyDraft(number: string): ProposalDraft {
     p1_tiktok: false,
     p1_email_template: false,
     p1_total: meta.price,
-    p2_bundle: "dtc_meta",
-    phase2_title: p2BundleMeta("dtc_meta").label,
-    phase2_monthly: `$${p2BundleMeta("dtc_meta").monthly.toLocaleString(
+    p2_bundle: "growth_ads",
+    phase2_title: p2BundleMeta("growth_ads").label,
+    phase2_monthly: `$${p2BundleMeta("growth_ads").monthly.toLocaleString(
       "en-US",
     )} / mo`,
     phase2_compare: "",
     phase2_note: "",
     phase2_commitment: "6 months",
-    p2_total: p2BundleMeta("dtc_meta").monthly,
+    p2_total: p2BundleMeta("growth_ads").monthly,
+    p2_discount: 0,
   };
 }
 
@@ -162,6 +163,7 @@ export default function ProposalsPage() {
       phase2_note: p.phase2_note ?? "",
       phase2_commitment: p.phase2_commitment ?? "",
       p2_total: Number(p.p2_total ?? 0),
+      p2_discount: Number(p.p2_discount ?? 0),
     });
   }
 
@@ -198,6 +200,7 @@ export default function ProposalsPage() {
       phase2_note: editing.phase2_note,
       phase2_commitment: editing.phase2_commitment,
       p2_total: editing.p2_total,
+      p2_discount: editing.p2_discount ?? 0,
     };
     if (editing.id) {
       await supabase.from("proposals").update(payload).eq("id", editing.id);
@@ -233,7 +236,12 @@ export default function ProposalsPage() {
         bundleKey === "custom"
           ? p.phase2_title ?? "Monthly retainer"
           : p2BundleMeta(bundleKey).label;
-      const monthly = Number(p.p2_total ?? 0);
+      const monthlyBase = Number(p.p2_total ?? 0);
+      const discount = Number(p.p2_discount ?? 0) || 0;
+      const monthly = Math.max(
+        0,
+        monthlyBase - monthlyBase * (discount / 100),
+      );
       const number = nextInvoiceNumber(invoices);
       await supabase.from("invoices").insert({
         number,
