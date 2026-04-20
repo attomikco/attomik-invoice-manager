@@ -996,6 +996,29 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y += il.length * 11 + 4;
   }
 
+  if (prop.notes && prop.notes.trim()) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const noteLines = doc.splitTextToSize(
+      prop.notes.trim(),
+      contentW - 28,
+    ) as string[];
+    const noteBoxH = 30 + noteLines.length * 13 + 14;
+    y += 10;
+    setFill(CREAM);
+    setStroke(BORDER);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, y, contentW, noteBoxH, "FD");
+    setFill(ACCENT);
+    doc.rect(margin, y, 3, noteBoxH, "F");
+    label("NOTES", margin + 14, y + 18);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    setColor(INK);
+    doc.text(noteLines, margin + 14, y + 36);
+    y += noteBoxH + 10;
+  }
+
   const p2ScopeIn = P2_SCOPE_IN[p2BundleKey] ?? P2_SCOPE_IN.growth_ads;
   const p2ScopeOut = P2_SCOPE_OUT[p2BundleKey] ?? P2_SCOPE_OUT.growth_ads;
   label("SCOPE OF WORK", margin, y);
@@ -1136,33 +1159,6 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.setFontSize(9.5);
   setColor(MUTED);
   doc.text("Let's talk — happy to walk through everything on a call.", margin, y);
-
-  if (prop.notes && prop.notes.trim()) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    const noteLines = doc.splitTextToSize(
-      prop.notes.trim(),
-      contentW - 28,
-    ) as string[];
-    const noteBoxH = 30 + noteLines.length * 13 + 14;
-    y += 24;
-    if (y + noteBoxH > H - 60) {
-      doc.addPage();
-      y = 80;
-    }
-    setFill(CREAM);
-    setStroke(BORDER);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, y, contentW, noteBoxH, "FD");
-    setFill(ACCENT);
-    doc.rect(margin, y, 3, noteBoxH, "F");
-    label("NOTES", margin + 14, y + 18);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    setColor(INK);
-    doc.text(noteLines, margin + 14, y + 36);
-    y += noteBoxH;
-  }
 
   // Page chrome (2..N)
   const totalPages = doc.getNumberOfPages();

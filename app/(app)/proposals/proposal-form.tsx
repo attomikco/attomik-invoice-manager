@@ -527,7 +527,7 @@ export default function ProposalForm({
               )}
             </div>
             <div className="form-group">
-              <label className="form-label">Note</label>
+              <label className="form-label">Rate Note</label>
               <input
                 value={draft.phase1_note}
                 onChange={(e) =>
@@ -617,7 +617,7 @@ export default function ProposalForm({
         </div>
 
         <div className="form-group">
-          <label className="form-label">Note</label>
+          <label className="form-label">Rate Note</label>
           <input
             value={draft.phase2_note}
             onChange={(e) =>
