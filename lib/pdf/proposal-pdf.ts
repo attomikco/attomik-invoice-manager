@@ -27,6 +27,7 @@ type Proposal = {
   p1_tiktok?: boolean | null;
   p1_email_template?: boolean | null;
   p1_total?: number | null;
+  p1_discount?: number | null;
   p2_bundle?: string | null;
   p2_total?: number | null;
   p2_discount?: number | null;
@@ -320,43 +321,6 @@ function fmtMoney(n: number): string {
   })}`;
 }
 
-function parseCompare(v: string | null | undefined): number {
-  if (!v) return NaN;
-  return parseFloat(String(v).replace(/[^0-9.]/g, ""));
-}
-
-function shouldShowCompare(
-  v: string | null | undefined,
-  compareTo: number,
-): boolean {
-  if (!String(v ?? "").trim()) return false;
-  const n = parseCompare(v);
-  if (isNaN(n)) return true;
-  if (n <= 0) return false;
-  return n !== compareTo;
-}
-
-function formatCompareText(
-  v: string | null | undefined,
-  suffix = "",
-): string {
-  const raw = String(v ?? "");
-  if (!raw) return "";
-  const n = parseCompare(v);
-  if (isNaN(n) || n <= 0) return raw;
-  return `${fmtMoney(n)}${suffix}`;
-}
-
-function formatCommitment(
-  c: string | null | undefined,
-): { label: string; sub: string } {
-  const raw = String(c ?? "").trim();
-  const n = parseInt(raw, 10);
-  if (!raw || isNaN(n) || n <= 1) {
-    return { label: "Month-by-month", sub: "Cancel anytime." };
-  }
-  return { label: `${n}-month minimum`, sub: "" };
-}
 
 type Settings = {
   brand_name?: string;
@@ -694,14 +658,17 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const p1Intro =
       P1_INTRO[p1Type] ??
       "A ground-up strategic build — not just a redesign. This phase lays the commercial, technical, and retention infrastructure needed to scale.";
-    const p1Total = Number(prop.p1_total ?? 0) || 0;
-    const p1price = p1Total > 0 ? fmtMoney(p1Total) : prop.phase1_price ?? "—";
+    const p1Base = Number(prop.p1_total ?? 0) || 0;
+    const p1DiscountPct = Number(prop.p1_discount ?? 0) || 0;
+    const p1HasDiscount = p1Base > 0 && p1DiscountPct > 0;
+    const p1Net = p1HasDiscount
+      ? Math.max(0, p1Base - p1Base * (p1DiscountPct / 100))
+      : p1Base;
+    const p1price =
+      p1Base > 0 ? fmtMoney(p1Net) : prop.phase1_price ?? "—";
+    const p1BaseFmt = fmtMoney(p1Base);
     const p1timeline = prop.phase1_timeline || "20 – 45 days";
     const p1payment = prop.phase1_payment || "$5k to start · $3k on launch";
-    const showP1Compare = shouldShowCompare(prop.phase1_compare, p1Total);
-    const p1CompareFmt = showP1Compare
-      ? formatCompareText(prop.phase1_compare)
-      : "";
 
     y = sectionHeader("Phase One", p1title, y);
     y = bodyText(p1Intro, margin, y, contentW);
@@ -743,7 +710,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     y += Math.ceil(tiles.length / 2) * (tileH + 8) + 12;
 
     // Pricing card
-    const p1cardH = showP1Compare || prop.phase1_note ? 96 : 78;
+    const p1cardH = p1HasDiscount || prop.phase1_note ? 96 : 78;
     setStroke(BORDER);
     doc.setLineWidth(0.5);
     setFill(CREAM);
@@ -772,21 +739,24 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
       const valY = y + 31 + fSz * 0.72;
       const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
       doc.text(vl, pc[0] + 16, valY);
-      if (i === 0 && (showP1Compare || prop.phase1_note)) {
+      if (i === 0 && (p1HasDiscount || prop.phase1_note)) {
         const lineY = valY + 16;
         let cx = pc[0] + 16;
-        if (showP1Compare) {
+        if (p1HasDiscount) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
           setColor(MUTED);
-          doc.text(p1CompareFmt, cx, lineY);
-          const w = doc.getTextWidth(p1CompareFmt);
+          doc.text(p1BaseFmt, cx, lineY);
+          const w = doc.getTextWidth(p1BaseFmt);
           setStroke(MUTED);
           doc.setLineWidth(0.6);
           doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
           cx += w + 8;
-        }
-        if (prop.phase1_note) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          setColor(ACCENT_DARK);
+          doc.text(`· ${p1DiscountPct}% off`, cx, lineY);
+        } else if (prop.phase1_note) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           setColor(ACCENT_DARK);
@@ -833,14 +803,6 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     ? Math.max(0, p2BaseAmt - p2BaseAmt * (p2DiscountPct / 100))
     : p2BaseAmt;
   const p2monthly = `${fmtMoney(p2NetAmt)} / mo`;
-  const hasP2Note = !!String(prop.phase2_note ?? "").trim();
-  const showP2Compare =
-    !p2HasDiscount &&
-    hasP2Note &&
-    shouldShowCompare(prop.phase2_compare, p2BaseAmt);
-  const p2CompareFmt = showP2Compare
-    ? formatCompareText(prop.phase2_compare, " / mo")
-    : "";
 
   y = sectionHeader("Phase Two", p2title, y);
   y = bodyText(
@@ -874,8 +836,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += 20;
 
   // Phase 2 pricing card
-  const p2cardH =
-    showP2Compare || prop.phase2_note || p2HasDiscount ? 108 : 90;
+  const p2cardH = prop.phase2_note || p2HasDiscount ? 108 : 90;
   const ACCENT_DARK2: RGB = [0, 150, 85];
   setFill(CREAM);
   setStroke(BORDER);
@@ -883,15 +844,14 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.rect(margin, y, contentW, p2cardH, "FD");
   setFill(ACCENT);
   doc.rect(margin, y, contentW, 4, "F");
-  const commitment = formatCommitment(prop.phase2_commitment);
   const p2cols: [number, string, string, string][] = [
     [margin, "MONTHLY RETAINER", p2monthly, ""],
     [margin + contentW / 3, "SCOPE", "Channel Ownership", ""],
     [
       margin + (contentW * 2) / 3,
       "TERMS",
-      commitment.label,
-      commitment.sub,
+      "Month-by-month",
+      "Cancel anytime.",
     ],
   ];
   p2cols.forEach((pc, i) => {
@@ -911,7 +871,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const valY2 = y + 30 + vSz * 0.72;
     const vl = doc.splitTextToSize(pc[2], contentW / 3 - 32) as string[];
     doc.text(vl, pc[0] + 16, valY2);
-    if (i === 0 && (showP2Compare || prop.phase2_note || p2HasDiscount)) {
+    if (i === 0 && (prop.phase2_note || p2HasDiscount)) {
       const lineY = valY2 + 16;
       let cx = pc[0] + 16;
       if (p2HasDiscount) {
@@ -928,22 +888,6 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
         doc.setFontSize(9);
         setColor(ACCENT_DARK2);
         doc.text(`· ${p2DiscountPct}% off`, cx, lineY);
-      } else if (showP2Compare) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        setColor(MUTED);
-        doc.text(p2CompareFmt, cx, lineY);
-        const w = doc.getTextWidth(p2CompareFmt);
-        setStroke(MUTED);
-        doc.setLineWidth(0.6);
-        doc.line(cx, lineY - 2.5, cx + w, lineY - 2.5);
-        cx += w + 8;
-        if (prop.phase2_note) {
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(9);
-          setColor(ACCENT_DARK2);
-          doc.text(`· ${prop.phase2_note}`, cx, lineY);
-        }
       } else if (prop.phase2_note) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);

@@ -58,6 +58,7 @@ function emptyDraft(number: string): ProposalDraft {
     p1_tiktok: false,
     p1_email_template: false,
     p1_total: meta.price,
+    p1_discount: 0,
     p2_bundle: "growth_ads",
     phase2_title: p2BundleMeta("growth_ads").label,
     phase2_monthly: `$${p2BundleMeta("growth_ads").monthly.toLocaleString(
@@ -170,6 +171,7 @@ export default function ProposalsPage() {
       p1_tiktok: !!p.p1_tiktok,
       p1_email_template: !!p.p1_email_template,
       p1_total: Number(p.p1_total ?? 0),
+      p1_discount: Number(p.p1_discount ?? 0),
       p2_bundle: p2Bundle,
       phase2_title: phase2Title,
       phase2_monthly: phase2Monthly,
@@ -207,6 +209,7 @@ export default function ProposalsPage() {
       p1_tiktok: editing.p1_tiktok,
       p1_email_template: editing.p1_email_template,
       p1_total: editing.p1_total,
+      p1_discount: editing.p1_discount ?? 0,
       p2_bundle: editing.p2_bundle,
       phase2_title: editing.phase2_title,
       phase2_monthly: editing.phase2_monthly,
@@ -279,6 +282,7 @@ export default function ProposalsPage() {
       const base = p1TypeMeta(p1Type).price;
       const depositAmount = Math.round(base * 0.6);
       const finalAmount = base - depositAmount;
+      const p1DiscountPct = Number(p.p1_discount ?? 0) || 0;
       const isNewBuild = p1Type === "new_build";
       const depositTitle = isNewBuild
         ? "DTC Strategy + Store Build — Deposit"
@@ -314,7 +318,7 @@ export default function ProposalsPage() {
           },
           ...addonItems,
         ],
-        discount: 0,
+        discount: p1DiscountPct,
         notes: "Deposit — due to start",
       });
 
@@ -337,7 +341,7 @@ export default function ProposalsPage() {
             rate: finalAmount,
           },
         ],
-        discount: 0,
+        discount: p1DiscountPct,
         notes: "Final payment — due on launch",
       });
     }

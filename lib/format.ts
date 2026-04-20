@@ -88,18 +88,21 @@ function parseMoney(s: string | null | undefined): number {
 
 export function proposalTotal(p: {
   p1_total?: number | null;
+  p1_discount?: number | null;
   phase1_price?: string | null;
   p2_total?: number | null;
   p2_discount?: number | null;
 }): number {
-  const p1 =
+  const p1Base =
     p.p1_total != null && Number.isFinite(Number(p.p1_total))
       ? Number(p.p1_total)
       : parseMoney(p.phase1_price);
+  const p1Pct = Number(p.p1_discount ?? 0) || 0;
+  const p1Net = Math.max(0, p1Base - p1Base * (p1Pct / 100));
   const p2Base = Number(p.p2_total ?? 0) || 0;
-  const discount = Number(p.p2_discount ?? 0) || 0;
-  const p2Net = Math.max(0, p2Base - p2Base * (discount / 100));
-  return p1 + p2Net;
+  const p2Pct = Number(p.p2_discount ?? 0) || 0;
+  const p2Net = Math.max(0, p2Base - p2Base * (p2Pct / 100));
+  return p1Net + p2Net;
 }
 
 export function nextInvoiceNumber(

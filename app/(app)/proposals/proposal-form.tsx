@@ -1,36 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Modal } from "@/components/modal";
 import { currencyCompact } from "@/lib/format";
-
-function CurrencyInput({
-  value,
-  onValueChange,
-  placeholder,
-}: {
-  value: string;
-  onValueChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  const [focused, setFocused] = useState(false);
-  const raw = String(value ?? "").replace(/[^0-9.]/g, "");
-  const num = parseFloat(raw);
-  const formatted =
-    raw === "" || isNaN(num) || num <= 0 ? raw : currencyCompact(num);
-  return (
-    <input
-      value={focused ? raw : formatted}
-      onChange={(e) =>
-        onValueChange(e.target.value.replace(/[^0-9.]/g, ""))
-      }
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      placeholder={placeholder}
-      inputMode="decimal"
-    />
-  );
-}
 
 export type P1Type = "new_build" | "growth_layer" | "retainer_only";
 
@@ -143,6 +114,7 @@ export type ProposalDraft = {
   p1_tiktok: boolean;
   p1_email_template: boolean;
   p1_total: number;
+  p1_discount: number;
   p2_bundle: P2Bundle;
   phase2_title: string;
   phase2_monthly: string;
@@ -234,6 +206,11 @@ export default function ProposalForm({
 
   const isRetainerOnly = draft.p1_type === "retainer_only";
   const isCustomBundle = draft.p2_bundle === "custom";
+  const p1Discount = Number(draft.p1_discount ?? 0) || 0;
+  const p1NetTotal = Math.max(
+    0,
+    (draft.p1_total || 0) - (draft.p1_total || 0) * (p1Discount / 100),
+  );
   const p2Discount = Number(draft.p2_discount ?? 0) || 0;
   const p2NetMonthly = Math.max(
     0,
@@ -522,28 +499,45 @@ export default function ProposalForm({
             />
           </div>
         </div>
-        <div className="grid-2">
-          <div className="form-group">
-            <label className="form-label">Standard Rate</label>
-            <CurrencyInput
-              value={draft.phase1_compare}
-              onValueChange={(v) =>
-                onChange({ ...draft, phase1_compare: v })
-              }
-              placeholder="e.g. $10,000"
-            />
+        {!isRetainerOnly && (
+          <div className="grid-2">
+            <div className="form-group">
+              <label className="form-label">Discount %</label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={draft.p1_discount ?? 0}
+                onChange={(e) => {
+                  const raw = parseFloat(e.target.value);
+                  const clamped = isNaN(raw)
+                    ? 0
+                    : Math.min(100, Math.max(0, raw));
+                  onChange({ ...draft, p1_discount: clamped });
+                }}
+              />
+              {p1Discount > 0 && (draft.p1_total || 0) > 0 && (
+                <div
+                  className="caption"
+                  style={{ marginTop: "var(--sp-1)" }}
+                >
+                  Net: {formatMoney(p1NetTotal)}
+                </div>
+              )}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Note</label>
+              <input
+                value={draft.phase1_note}
+                onChange={(e) =>
+                  onChange({ ...draft, phase1_note: e.target.value })
+                }
+                placeholder="e.g. Early Stage Rate"
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Note</label>
-            <input
-              value={draft.phase1_note}
-              onChange={(e) =>
-                onChange({ ...draft, phase1_note: e.target.value })
-              }
-              placeholder="e.g. Early Stage Rate"
-            />
-          </div>
-        </div>
+        )}
 
         <div className="section-header" style={{ margin: 0 }}>
           <div className="section-header-bar" />
@@ -622,37 +616,15 @@ export default function ProposalForm({
           )}
         </div>
 
-        <div className="grid-3">
-          <div className="form-group">
-            <label className="form-label">Commitment</label>
-            <input
-              value={draft.phase2_commitment}
-              onChange={(e) =>
-                onChange({ ...draft, phase2_commitment: e.target.value })
-              }
-              placeholder="e.g. 6 months"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Standard Rate</label>
-            <CurrencyInput
-              value={draft.phase2_compare}
-              onValueChange={(v) =>
-                onChange({ ...draft, phase2_compare: v })
-              }
-              placeholder="e.g. $5,000"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Note</label>
-            <input
-              value={draft.phase2_note}
-              onChange={(e) =>
-                onChange({ ...draft, phase2_note: e.target.value })
-              }
-              placeholder="e.g. Early Stage Rate"
-            />
-          </div>
+        <div className="form-group">
+          <label className="form-label">Note</label>
+          <input
+            value={draft.phase2_note}
+            onChange={(e) =>
+              onChange({ ...draft, phase2_note: e.target.value })
+            }
+            placeholder="e.g. Early Stage Rate"
+          />
         </div>
 
         <div className="form-group">

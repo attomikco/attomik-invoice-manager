@@ -68,6 +68,7 @@ export type Proposal = {
   p1_tiktok: boolean | null;
   p1_email_template: boolean | null;
   p1_total: number | null;
+  p1_discount: number | null;
   p2_bundle: string | null;
   p2_total: number | null;
   p2_discount: number | null;

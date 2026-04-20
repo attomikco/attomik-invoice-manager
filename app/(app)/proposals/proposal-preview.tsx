@@ -18,43 +18,19 @@ export default function ProposalPreview({
 }) {
   if (!proposal) return null;
 
-  const p1Total = Number(proposal.p1_total ?? 0) || 0;
+  const p1Base = Number(proposal.p1_total ?? 0) || 0;
+  const p1Discount = Number(proposal.p1_discount ?? 0) || 0;
+  const p1HasDiscount = p1Base > 0 && p1Discount > 0;
+  const p1Net = p1HasDiscount
+    ? Math.max(0, p1Base - p1Base * (p1Discount / 100))
+    : p1Base;
+
   const p2Base = Number(proposal.p2_total ?? 0) || 0;
   const p2Discount = Number(proposal.p2_discount ?? 0) || 0;
   const p2HasDiscount = p2Base > 0 && p2Discount > 0;
   const p2Net = p2HasDiscount
     ? Math.max(0, p2Base - p2Base * (p2Discount / 100))
     : p2Base;
-
-  const formatCompare = (v: string | null, suffix = "") => {
-    if (!v) return "";
-    const n = parseFloat(String(v).replace(/[^0-9.]/g, ""));
-    if (isNaN(n) || n <= 0) return v;
-    return `${currencyCompact(n)}${suffix}`;
-  };
-
-  const shouldShowCompare = (v: string | null, compareTo: number) => {
-    if (!v?.trim()) return false;
-    const n = parseFloat(String(v).replace(/[^0-9.]/g, ""));
-    if (isNaN(n)) return true;
-    if (n <= 0) return false;
-    return n !== compareTo;
-  };
-
-  const showP1Compare = shouldShowCompare(proposal.phase1_compare, p1Total);
-  const hasP2Note = !!String(proposal.phase2_note ?? "").trim();
-  const showP2Compare =
-    !p2HasDiscount &&
-    hasP2Note &&
-    shouldShowCompare(proposal.phase2_compare, p2Base);
-
-  const commitmentRaw = String(proposal.phase2_commitment ?? "").trim();
-  const commitmentN = parseInt(commitmentRaw, 10);
-  const commitmentLabel = !commitmentRaw
-    ? ""
-    : isNaN(commitmentN) || commitmentN <= 1
-      ? "Month-by-month · Cancel anytime"
-      : `${commitmentN}-month minimum`;
 
   const P2_TITLE_MAP: Record<string, string> = {
     growth_ads: "Growth + Ads Bundle",
@@ -216,19 +192,33 @@ export default function ProposalPreview({
                 className="mono"
                 style={{ fontSize: "var(--text-md)" }}
               >
-                {proposal.phase1_price ?? "—"}
+                {p1HasDiscount
+                  ? currencyCompact(p1Net)
+                  : proposal.phase1_price ?? "—"}
               </span>
-              {showP1Compare && (
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--muted)",
-                    textDecoration: "line-through",
-                  }}
-                >
-                  {formatCompare(proposal.phase1_compare)}
-                </span>
+              {p1HasDiscount && (
+                <>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--muted)",
+                      textDecoration: "line-through",
+                    }}
+                  >
+                    {currencyCompact(p1Base)}
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--brand-green-dark, var(--accent))",
+                      fontWeight: "var(--fw-semibold)",
+                    }}
+                  >
+                    ({p1Discount}% off)
+                  </span>
+                </>
               )}
               {proposal.phase1_note && (
                 <span
@@ -321,18 +311,6 @@ export default function ProposalPreview({
                   </span>
                 </>
               )}
-              {showP2Compare && (
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--white-a50)",
-                    textDecoration: "line-through",
-                  }}
-                >
-                  {formatCompare(proposal.phase2_compare, " / mo")}
-                </span>
-              )}
               {proposal.phase2_note && (
                 <span
                   className="mono"
@@ -346,17 +324,15 @@ export default function ProposalPreview({
                 </span>
               )}
             </div>
-            {commitmentLabel && (
-              <div
-                className="caption"
-                style={{
-                  marginTop: "var(--sp-1)",
-                  color: "var(--white-a70)",
-                }}
-              >
-                Commitment: {commitmentLabel}
-              </div>
-            )}
+            <div
+              className="caption"
+              style={{
+                marginTop: "var(--sp-1)",
+                color: "var(--white-a70)",
+              }}
+            >
+              Month-by-month · Cancel anytime
+            </div>
           </div>
         )}
 
