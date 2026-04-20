@@ -980,6 +980,21 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   });
   y += p2cardH + 10;
 
+  if (p2HasDiscount) {
+    const commitmentN =
+      parseInt(String(prop.phase2_commitment ?? "").replace(/[^0-9]/g, ""), 10);
+    const introMonths =
+      isNaN(commitmentN) || commitmentN <= 0 ? 3 : commitmentN;
+    const introText = `Introductory rate for the first ${introMonths} months. At month ${introMonths + 1} we review performance together and align on the right rate and commitment going forward.`;
+    y += 8;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    setColor(MUTED);
+    const il = doc.splitTextToSize(introText, contentW) as string[];
+    doc.text(il, margin, y);
+    y += il.length * 11 + 4;
+  }
+
   const p2ScopeIn = P2_SCOPE_IN[p2BundleKey] ?? P2_SCOPE_IN.growth_ads;
   const p2ScopeOut = P2_SCOPE_OUT[p2BundleKey] ?? P2_SCOPE_OUT.growth_ads;
   label("SCOPE OF WORK", margin, y);

@@ -32,6 +32,14 @@ export default function ProposalPreview({
     ? Math.max(0, p2Base - p2Base * (p2Discount / 100))
     : p2Base;
 
+  const commitmentDigits = String(proposal.phase2_commitment ?? "").replace(
+    /[^0-9]/g,
+    "",
+  );
+  const commitmentN = parseInt(commitmentDigits, 10);
+  const introMonths =
+    isNaN(commitmentN) || commitmentN <= 0 ? 3 : commitmentN;
+
   const P2_TITLE_MAP: Record<string, string> = {
     growth_ads: "Growth + Ads Bundle",
     growth_ads_search: "Growth + Ads + Search Bundle",
@@ -247,6 +255,7 @@ export default function ProposalPreview({
         )}
 
         {(proposal.phase2_title || proposal.phase2_monthly) && (
+          <>
           <div
             className="card card-dark"
             style={{ marginTop: "var(--sp-4)" }}
@@ -334,6 +343,21 @@ export default function ProposalPreview({
               Month-by-month · Cancel anytime
             </div>
           </div>
+          {p2HasDiscount && (
+            <p
+              className="caption"
+              style={{
+                marginTop: "var(--sp-2)",
+                fontStyle: "italic",
+                color: "var(--muted)",
+              }}
+            >
+              Introductory rate for the first {introMonths} months. At month{" "}
+              {introMonths + 1} we review performance together and align on
+              the right rate and commitment going forward.
+            </p>
+          )}
+          </>
         )}
 
         {proposal.notes && (
