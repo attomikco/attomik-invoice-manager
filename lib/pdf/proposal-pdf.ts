@@ -981,7 +981,10 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   });
   y += p2cardH + 10;
 
-  if (p2HasDiscount) {
+  if (
+    p2HasDiscount ||
+    (prop.phase2_note && prop.phase2_note.trim())
+  ) {
     const commitmentN = parseInt(
       String(prop.phase2_commitment ?? "").replace(/[^0-9]/g, ""),
       10,
