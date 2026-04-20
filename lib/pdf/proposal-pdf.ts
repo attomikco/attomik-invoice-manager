@@ -910,7 +910,7 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   // Phase 2 pricing card
   const hasP2Note = !!String(prop.phase2_note ?? "").trim();
   const p2cardH =
-    p2HasDiscount && hasP2Note ? 122 : p2HasDiscount || hasP2Note ? 108 : 90;
+    78 + (p2HasDiscount ? 16 : 0) + (hasP2Note ? 14 : 0);
   const ACCENT_DARK2: RGB = [0, 150, 85];
   setFill(CREAM);
   setStroke(BORDER);
@@ -997,7 +997,9 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   }
 
   if (prop.notes && prop.notes.trim()) {
-    y += 8;
+    y += 10;
+    label("NOTES", margin, y);
+    y += 14;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     setColor(MUTED);
