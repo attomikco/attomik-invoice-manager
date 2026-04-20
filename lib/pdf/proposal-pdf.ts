@@ -989,16 +989,16 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     const introMonths =
       isNaN(commitmentN) || commitmentN <= 0 ? 3 : commitmentN;
     const introText = `Introductory rate for the first ${introMonths} months. At month ${introMonths + 1} we review performance together and align on the right rate and commitment going forward.`;
-    y += 8;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(8);
+    y += 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
     setColor(MUTED);
     const il = doc.splitTextToSize(introText, contentW) as string[];
     il.forEach((line) => {
       doc.text(line, margin, y);
-      y += 11;
+      y += 12;
     });
-    y += 4;
+    y += 6;
   }
 
   if (prop.notes && prop.notes.trim()) {
