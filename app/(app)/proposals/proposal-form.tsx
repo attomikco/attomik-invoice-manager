@@ -1,7 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { Modal } from "@/components/modal";
 import { currencyCompact } from "@/lib/format";
+
+function CurrencyInput({
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  value: string;
+  onValueChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const raw = String(value ?? "").replace(/[^0-9.]/g, "");
+  const num = parseFloat(raw);
+  const formatted =
+    raw === "" || isNaN(num) || num <= 0 ? raw : currencyCompact(num);
+  return (
+    <input
+      value={focused ? raw : formatted}
+      onChange={(e) =>
+        onValueChange(e.target.value.replace(/[^0-9.]/g, ""))
+      }
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      placeholder={placeholder}
+      inputMode="decimal"
+    />
+  );
+}
 
 export type P1Type = "new_build" | "growth_layer" | "retainer_only";
 
@@ -496,10 +525,10 @@ export default function ProposalForm({
         <div className="grid-2">
           <div className="form-group">
             <label className="form-label">Standard Rate</label>
-            <input
+            <CurrencyInput
               value={draft.phase1_compare}
-              onChange={(e) =>
-                onChange({ ...draft, phase1_compare: e.target.value })
+              onValueChange={(v) =>
+                onChange({ ...draft, phase1_compare: v })
               }
               placeholder="e.g. $10,000"
             />
@@ -606,12 +635,12 @@ export default function ProposalForm({
           </div>
           <div className="form-group">
             <label className="form-label">Standard Rate</label>
-            <input
+            <CurrencyInput
               value={draft.phase2_compare}
-              onChange={(e) =>
-                onChange({ ...draft, phase2_compare: e.target.value })
+              onValueChange={(v) =>
+                onChange({ ...draft, phase2_compare: v })
               }
-              placeholder="e.g. $5,000 / mo"
+              placeholder="e.g. $5,000"
             />
           </div>
           <div className="form-group">

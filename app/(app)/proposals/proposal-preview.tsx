@@ -42,8 +42,19 @@ export default function ProposalPreview({
   };
 
   const showP1Compare = shouldShowCompare(proposal.phase1_compare, p1Total);
+  const hasP2Note = !!String(proposal.phase2_note ?? "").trim();
   const showP2Compare =
-    !p2HasDiscount && shouldShowCompare(proposal.phase2_compare, p2Base);
+    !p2HasDiscount &&
+    hasP2Note &&
+    shouldShowCompare(proposal.phase2_compare, p2Base);
+
+  const commitmentRaw = String(proposal.phase2_commitment ?? "").trim();
+  const commitmentN = parseInt(commitmentRaw, 10);
+  const commitmentLabel = !commitmentRaw
+    ? ""
+    : isNaN(commitmentN) || commitmentN <= 1
+      ? "Month-by-month · Cancel anytime"
+      : `${commitmentN}-month minimum`;
 
   const P2_TITLE_MAP: Record<string, string> = {
     growth_ads: "Growth + Ads Bundle",
@@ -335,7 +346,7 @@ export default function ProposalPreview({
                 </span>
               )}
             </div>
-            {proposal.phase2_commitment && (
+            {commitmentLabel && (
               <div
                 className="caption"
                 style={{
@@ -343,7 +354,7 @@ export default function ProposalPreview({
                   color: "var(--white-a70)",
                 }}
               >
-                Commitment: {proposal.phase2_commitment}
+                Commitment: {commitmentLabel}
               </div>
             )}
           </div>

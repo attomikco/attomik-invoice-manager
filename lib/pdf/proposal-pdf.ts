@@ -833,8 +833,11 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
     ? Math.max(0, p2BaseAmt - p2BaseAmt * (p2DiscountPct / 100))
     : p2BaseAmt;
   const p2monthly = `${fmtMoney(p2NetAmt)} / mo`;
+  const hasP2Note = !!String(prop.phase2_note ?? "").trim();
   const showP2Compare =
-    !p2HasDiscount && shouldShowCompare(prop.phase2_compare, p2BaseAmt);
+    !p2HasDiscount &&
+    hasP2Note &&
+    shouldShowCompare(prop.phase2_compare, p2BaseAmt);
   const p2CompareFmt = showP2Compare
     ? formatCompareText(prop.phase2_compare, " / mo")
     : "";
