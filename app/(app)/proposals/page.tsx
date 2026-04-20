@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   currency,
@@ -502,22 +503,34 @@ export default function ProposalsPage() {
                         {p.status ?? "draft"}
                       </span>
                     </td>
-                    <td className="td-right">
+                    <td
+                      className="td-right"
+                      style={{ minWidth: 180, whiteSpace: "nowrap" }}
+                    >
                       <div
-                        className="flex gap-2"
-                        style={{ justifyContent: "flex-end", flexWrap: "wrap" }}
+                        className="flex gap-1"
+                        style={{
+                          justifyContent: "flex-end",
+                          alignItems: "center",
+                        }}
                       >
                         <button
-                          className="btn btn-ghost btn-xs"
+                          type="button"
+                          className="icon-btn"
                           onClick={() => setPreviewing(p)}
+                          aria-label="Preview"
+                          title="Preview"
                         >
-                          Preview
+                          <Eye size={15} strokeWidth={1.75} />
                         </button>
                         <button
-                          className="btn btn-ghost btn-xs"
+                          type="button"
+                          className="icon-btn"
                           onClick={() => startEdit(p)}
+                          aria-label="Edit"
+                          title="Edit"
                         >
-                          Edit
+                          <Pencil size={15} strokeWidth={1.75} />
                         </button>
                         {p.status === "accepted" && (
                           <button
@@ -528,10 +541,13 @@ export default function ProposalsPage() {
                           </button>
                         )}
                         <button
-                          className="btn btn-danger btn-xs"
+                          type="button"
+                          className="icon-btn danger"
                           onClick={() => setDeleting(p)}
+                          aria-label="Delete"
+                          title="Delete"
                         >
-                          Delete
+                          <Trash2 size={15} strokeWidth={1.75} />
                         </button>
                       </div>
                     </td>
