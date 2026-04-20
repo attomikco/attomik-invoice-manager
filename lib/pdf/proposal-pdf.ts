@@ -995,7 +995,41 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   y += 20;
 
   const colW2 = contentW / 2 - 4;
-  const colH = 240;
+  const p1list: P1Tile[] =
+    p1Type === "retainer_only"
+      ? [
+          {
+            title: "No setup phase",
+            description:
+              "Engagement begins directly with the ongoing retainer below.",
+          },
+        ]
+      : [
+          ...(P1_TILES[p1Type] ?? P1_TILES.new_build),
+          ...activeAddons.map((k) => P1_ADDON_TILES[k]),
+        ];
+  const p2list: [string, string][] =
+    P2_ITEMS[p2BundleKey] ?? P2_ITEMS.growth_ads;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  const p1Body = p1list.reduce((sum, item) => {
+    let lines = 0;
+    if (item.bullets && item.bullets.length > 0) {
+      lines = item.bullets.length;
+    } else if (item.description) {
+      lines = (
+        doc.splitTextToSize(item.description, colW2 - 28) as string[]
+      ).length;
+    }
+    return sum + 13 + lines * 10 + 8;
+  }, 0);
+  const p2Body = p2list.reduce((sum, item) => {
+    const lines = (doc.splitTextToSize(item[1], colW2 - 28) as string[]).length;
+    return sum + 13 + lines * 10 + 8;
+  }, 0);
+  const colH = 52 + Math.max(p1Body, p2Body) + 20;
+
   setFill(CREAM);
   setStroke(BORDER);
   doc.setLineWidth(0.5);
@@ -1010,35 +1044,29 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.setFontSize(7.5);
   setColor(MUTED);
   doc.text("What we build together", margin + 14, y + 34);
-  const p1list: P1Tile[] =
-    p1Type === "retainer_only"
-      ? [
-          {
-            title: "No setup phase",
-            description:
-              "Engagement begins directly with the ongoing retainer below.",
-          },
-        ]
-      : [
-          ...(P1_TILES[p1Type] ?? P1_TILES.new_build),
-          ...activeAddons.map((k) => P1_ADDON_TILES[k]),
-        ];
   let iy = y + 52;
   p1list.forEach((item) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     setColor(INK);
     doc.text(item.title, margin + 14, iy);
-    iy += 12;
+    iy += 13;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     setColor(MUTED);
-    const body = item.bullets
-      ? item.bullets.join(" · ")
-      : item.description ?? "";
-    const ls = doc.splitTextToSize(body, colW2 - 28) as string[];
-    doc.text(ls, margin + 14, iy);
-    iy += ls.length * 10 + 8;
+    if (item.bullets && item.bullets.length > 0) {
+      item.bullets.forEach((b) => {
+        doc.text(`· ${b}`, margin + 14, iy);
+        iy += 10;
+      });
+    } else if (item.description) {
+      const ls = doc.splitTextToSize(item.description, colW2 - 28) as string[];
+      ls.forEach((line) => {
+        doc.text(line, margin + 14, iy);
+        iy += 10;
+      });
+    }
+    iy += 8;
   });
 
   const rx = margin + colW2 + 8;
@@ -1054,21 +1082,22 @@ export function generateProposalPDF(prop: Proposal, settings: Settings = {}): vo
   doc.setFontSize(7.5);
   setColor([120, 120, 120]);
   doc.text("How we drive growth", rx + 14, y + 34);
-  const p2list: [string, string][] =
-    P2_ITEMS[p2BundleKey] ?? P2_ITEMS.growth_ads;
   iy = y + 52;
   p2list.forEach((item) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     setColor(PAPER);
     doc.text(item[0], rx + 14, iy);
-    iy += 12;
+    iy += 13;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     setColor([160, 160, 160]);
     const ls = doc.splitTextToSize(item[1], colW2 - 28) as string[];
-    doc.text(ls, rx + 14, iy);
-    iy += ls.length * 10 + 8;
+    ls.forEach((line) => {
+      doc.text(line, rx + 14, iy);
+      iy += 10;
+    });
+    iy += 8;
   });
   y += colH + 28;
 
