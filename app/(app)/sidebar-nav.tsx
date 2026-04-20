@@ -62,11 +62,7 @@ export default function SidebarNav() {
         target="_blank"
         rel="noopener noreferrer"
         className="nav-item"
-        style={{
-          marginTop: "auto",
-          borderTop: "1px solid var(--border)",
-          paddingTop: "var(--sp-3)",
-        }}
+        style={{ marginTop: "auto" }}
       >
         <BookOpen
           size={16}
