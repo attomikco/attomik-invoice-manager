@@ -219,12 +219,18 @@ export default function ProposalsPage() {
       p2_total: editing.p2_total,
       p2_discount: editing.p2_discount ?? 0,
     };
-    if (editing.id) {
-      await supabase.from("proposals").update(payload).eq("id", editing.id);
-    } else {
-      await supabase.from("proposals").insert(payload);
-    }
+    const { error } = editing.id
+      ? await supabase
+          .from("proposals")
+          .update(payload)
+          .eq("id", editing.id)
+      : await supabase.from("proposals").insert(payload);
     setSaving(false);
+    if (error) {
+      console.error("Save proposal failed:", error);
+      alert(`Save failed: ${error.message}`);
+      return;
+    }
     setEditing(null);
     await load();
   }
