@@ -20,7 +20,6 @@ import {
   EMPTY_LINE,
   toLineItemDraft,
   fromLineItemDraft,
-  type Invoice,
   type LineItemDraft,
   type Proposal,
   type Service,
@@ -69,7 +68,6 @@ export default function ProposalsPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [settings, setSettings] = useState<SettingsMap>({});
   const [loading, setLoading] = useState(true);
@@ -100,20 +98,14 @@ export default function ProposalsPage() {
         servicesError.code,
       );
     }
-    const [{ data: props }, { data: invs }, { data: stg }] = await Promise.all([
+    const [{ data: props }, { data: stg }] = await Promise.all([
       supabase
         .from("proposals")
         .select("*")
         .order("date", { ascending: false }),
-      supabase
-        .from("invoices")
-        .select("id, number")
-        .order("date", { ascending: false })
-        .limit(500),
       supabase.from("settings").select("key, value"),
     ]);
     setProposals((props as Proposal[] | null) ?? []);
-    setInvoices((invs as Invoice[] | null) ?? []);
     setServices((servicesData as Service[] | null) ?? []);
     const map: SettingsMap = {};
     for (const row of (stg as { key: string; value: string }[] | null) ?? []) {
@@ -301,111 +293,6 @@ export default function ProposalsPage() {
     await supabase.from("proposals").delete().eq("id", deleting.id);
     setDeleting(null);
     await load();
-  }
-
-  async function convertToInvoice(p: Proposal) {
-    const today = dateISO();
-    const due = dateISO(addDays(new Date(), 15));
-    const clientFields = {
-      client_name: p.client_name,
-      client_email: p.client_email,
-      client_company: p.client_company,
-      client_address: null,
-    };
-
-    const p1Items = Array.isArray(p.p1_items) ? p.p1_items : [];
-    const p1SubtotalVal = lineSubtotal(p1Items);
-    const hasP1 = p1Items.length > 0 && p1SubtotalVal > 0;
-    const p1DiscountAmt = Number(p.p1_discount_amount ?? 0) || 0;
-    const p1DiscountPct =
-      p1DiscountAmt > 0 && p1SubtotalVal > 0
-        ? (p1DiscountAmt / p1SubtotalVal) * 100
-        : Number(p.p1_discount ?? 0) || 0;
-
-    const p2Items = Array.isArray(p.p2_items) ? p.p2_items : [];
-    const p2ItemsSubtotal = lineSubtotal(p2Items);
-    const p2RateStored = Number(p.p2_rate ?? 0) || 0;
-    const p2RateFallback = Number(p.p2_total ?? 0) || 0;
-    const p2Rate =
-      p2ItemsSubtotal > 0
-        ? p2ItemsSubtotal
-        : p2RateStored > 0
-          ? p2RateStored
-          : p2RateFallback;
-    const p2DiscountAmt = Number(p.p2_discount_amount ?? 0) || 0;
-    const p2DiscountPctForInvoice =
-      p2DiscountAmt > 0 && p2Rate > 0
-        ? (p2DiscountAmt / p2Rate) * 100
-        : Number(p.p2_discount ?? 0) || 0;
-    const p2Net =
-      p2DiscountAmt > 0
-        ? Math.max(0, p2Rate - p2DiscountAmt)
-        : (() => {
-            const pct = Number(p.p2_discount ?? 0) || 0;
-            return Math.max(0, p2Rate - p2Rate * (pct / 100));
-          })();
-
-    if (hasP1) {
-      const depositItems = p1Items.map((it) => ({
-        service_id: it.service_id ?? null,
-        title: (it.title ?? it.name ?? "Service") as string,
-        description: (it.description ?? it.desc ?? "") as string,
-        qty: Number(it.qty ?? it.quantity ?? 1) || 1,
-        rate: Number(it.rate ?? it.price ?? 0) || 0,
-      }));
-      const invoiceNumber = nextInvoiceNumber(invoices);
-      await supabase.from("invoices").insert({
-        number: invoiceNumber,
-        date: today,
-        due,
-        status: "draft",
-        ...clientFields,
-        items: depositItems,
-        discount: p1DiscountPct,
-        notes: p.notes,
-      });
-    }
-
-    if (p2Rate > 0) {
-      const p2LineItems =
-        p2Items.length > 0
-          ? p2Items.map((it) => ({
-              service_id: it.service_id ?? null,
-              title: (it.title ?? it.name ?? "Service") as string,
-              description: (it.description ?? it.desc ?? "") as string,
-              qty: Number(it.qty ?? it.quantity ?? 1) || 1,
-              rate: Number(it.rate ?? it.price ?? 0) || 0,
-            }))
-          : [
-              {
-                service_id: null,
-                title: p.phase2_title || "Monthly retainer",
-                description: "First month retainer",
-                qty: 1,
-                rate: p2Rate,
-              },
-            ];
-      const p2InvoiceNumber = nextInvoiceNumber([
-        ...invoices,
-        ...(hasP1 ? [{ id: "tmp", number: null } as Invoice] : []),
-      ]);
-      await supabase.from("invoices").insert({
-        number: p2InvoiceNumber,
-        date: today,
-        due,
-        status: "draft",
-        ...clientFields,
-        items: p2LineItems,
-        discount: p2DiscountPctForInvoice,
-        notes: p.notes,
-      });
-    }
-
-    await supabase
-      .from("proposals")
-      .update({ status: "accepted" })
-      .eq("id", p.id);
-    router.push("/invoices");
   }
 
   async function createAgreement(p: Proposal) {
@@ -618,26 +505,15 @@ export default function ProposalsPage() {
                           <Pencil size={15} strokeWidth={1.75} />
                         </button>
                         {p.status === "accepted" && (
-                          <>
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              onClick={() => createAgreement(p)}
-                              aria-label="Create agreement"
-                              title="Create agreement"
-                            >
-                              <FileSignature
-                                size={15}
-                                strokeWidth={1.75}
-                              />
-                            </button>
-                            <button
-                              className="btn btn-dark btn-xs"
-                              onClick={() => convertToInvoice(p)}
-                            >
-                              → Invoice
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={() => createAgreement(p)}
+                            aria-label="Create agreement"
+                            title="Create agreement"
+                          >
+                            <FileSignature size={15} strokeWidth={1.75} />
+                          </button>
                         )}
                         <button
                           type="button"
