@@ -26,19 +26,20 @@ export function generateAgreementPDF(
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const W = 612;
   const H = 792;
-  const margin = 48;
+  const margin = 64;
   const contentW = W - margin * 2;
+  const pageTop = 56;
 
   const INK: RGB = [0, 0, 0];
   const ACCENT: RGB = [0, 150, 85];
   const MUTED: RGB = [110, 110, 110];
-  const BORDER: RGB = [220, 220, 220];
+  const BORDER: RGB = [229, 229, 229];
 
   const setFill = (c: RGB) => doc.setFillColor(c[0], c[1], c[2]);
   const setStroke = (c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
   const setColor = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
 
-  const bottomLimit = H - 54;
+  const bottomLimit = H - 68;
 
   function ensureSpace(
     lineHeight: number,
@@ -46,13 +47,13 @@ export function generateAgreementPDF(
   ): { y: number; didBreak: boolean } {
     if (y + lineHeight > bottomLimit) {
       doc.addPage();
-      return { y: 56, didBreak: true };
+      return { y: pageTop, didBreak: true };
     }
     return { y, didBreak: false };
   }
 
   // ── HEADER (top of page 1) ───────────────────────────────────────
-  let y = 48;
+  let y = 56;
   try {
     doc.addImage(LOGO_BLACK_B64, "PNG", margin, y, 70, 70 * (909 / 3162));
   } catch {
@@ -77,11 +78,11 @@ export function generateAgreementPDF(
     align: "right",
   });
 
-  y += 56;
+  y += 72;
   setStroke(BORDER);
   doc.setLineWidth(0.6);
   doc.line(margin, y, W - margin, y);
-  y += 14;
+  y += 20;
 
   // Parties
   doc.setFont("helvetica", "bold");
@@ -89,13 +90,13 @@ export function generateAgreementPDF(
   setColor(MUTED);
   doc.text("BETWEEN", margin, y, { charSpace: 1 });
   doc.text("AND", margin + contentW / 2, y, { charSpace: 1 });
-  y += 14;
+  y += 16;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   setColor(INK);
   doc.text(legalEntity, margin, y);
   doc.text(clientName, margin + contentW / 2, y);
-  y += 12;
+  y += 14;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   setColor(MUTED);
@@ -108,7 +109,11 @@ export function generateAgreementPDF(
   if (agreement.client_email) {
     doc.text(agreement.client_email, margin + contentW / 2, y);
   }
-  y += 16;
+  y += 28;
+  setStroke(BORDER);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  y += 22;
 
   // ── PROPOSAL REFERENCE ──────────────────────────────────────────
   const proposalNumber = (agreement.proposal_number ?? "").trim();
@@ -125,23 +130,28 @@ export function generateAgreementPDF(
   doc.setFontSize(8);
   setColor(MUTED);
   doc.text("REFERENCED PROPOSAL", margin, y, { charSpace: 1 });
-  y += 12;
+  y += 14;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   setColor([70, 70, 70]);
   const refLines = doc.splitTextToSize(refText, contentW) as string[];
+  const refLH = 13.5;
   refLines.forEach((line) => {
     doc.text(line, margin, y);
-    y += 11;
+    y += refLH;
   });
-  y += 8;
+  y += 20;
 
   // ── TERMS & CONDITIONS ──────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   setColor(ACCENT);
   doc.text("TERMS & CONDITIONS", margin, y, { charSpace: 1.2 });
-  y += 14;
+  y += 6;
+  setStroke(BORDER);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  y += 18;
 
   const termsTemplate = agreement.terms || DEFAULT_LEGAL_TERMS;
   const renderedTerms = renderTerms(termsTemplate, {
@@ -152,17 +162,29 @@ export function generateAgreementPDF(
   });
 
   const paragraphs = renderedTerms.split(/\n\s*\n/);
-  const paraLH = 10.5;
+  const paraLH = 12.8; // ~1.6 line-height on 8pt body
+  const headingSpaceAbove = 30;
+  const headingSpaceBelow = 10;
+  const paraGap = 10;
+  let firstHeading = true;
   for (const para of paragraphs) {
     const isHeading = /^\d+\.\s+[A-Z]/.test(para);
     if (isHeading) {
-      const checked = ensureSpace(14, y);
+      if (!firstHeading) y += headingSpaceAbove;
+      firstHeading = false;
+      // Keep the heading with its own underline and first line of body.
+      const keepWith = 14 + 6 + paraLH;
+      const checked = ensureSpace(keepWith, y);
       y = checked.y;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(8.5);
       setColor(INK);
-      doc.text(para, margin, y, { maxWidth: contentW, charSpace: 0.3 });
-      y += 12;
+      doc.text(para, margin, y, { maxWidth: contentW, charSpace: 0.4 });
+      y += 6;
+      setStroke(BORDER);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, W - margin, y);
+      y += headingSpaceBelow;
     } else {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
@@ -174,67 +196,71 @@ export function generateAgreementPDF(
         doc.text(line, margin, y);
         y += paraLH;
       }
-      y += 4;
+      y += paraGap;
     }
   }
 
   // ── SIGNATURE BLOCK ─────────────────────────────────────────────
-  y += 8;
-  // Ensure signatures aren't orphaned from the preceding paragraph — if < 80pt left, push to next page
-  if (y + 84 > bottomLimit) {
+  y += 24;
+  // Stack both signer blocks on one page. Height ≈ 2 × 80 + 32 gap = ~192pt.
+  if (y + 200 > bottomLimit) {
     doc.addPage();
-    y = 56;
+    y = pageTop;
   }
   setStroke(BORDER);
   doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
-  y += 14;
+  y += 26;
 
-  const sigColW = contentW / 2 - 10;
-  // Attomik
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  setColor(MUTED);
-  doc.text(`FOR ${legalEntity.toUpperCase()}`, margin, y, { charSpace: 1 });
-  setStroke(INK);
-  doc.setLineWidth(0.6);
-  doc.line(margin, y + 28, margin + sigColW, y + 28);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  setColor(INK);
-  doc.text("Pablo Rivera, Founder", margin, y + 40);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  setColor(MUTED);
-  doc.text(`Date: ${dateShort(agreement.date)}`, margin, y + 52);
-
-  // Client
-  const rightX = margin + contentW / 2 + 10;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  setColor(MUTED);
-  doc.text(`FOR ${clientName.toUpperCase()}`, rightX, y, { charSpace: 1 });
-  setStroke(INK);
-  doc.setLineWidth(0.6);
-  doc.line(rightX, y + 28, rightX + sigColW, y + 28);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  setColor(INK);
-  const signer = agreement.signed_by_name
+  const sigLineW = contentW * 0.7;
+  const clientSigner = agreement.signed_by_name
     ? `${agreement.signed_by_name}${
         agreement.signed_by_title ? `, ${agreement.signed_by_title}` : ""
       }`
     : "Name & title";
-  doc.text(signer, rightX, y + 40);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  setColor(MUTED);
-  doc.text(
-    `Date: ${
-      agreement.signed_date ? dateShort(agreement.signed_date) : "________________"
-    }`,
-    rightX,
-    y + 52,
+  const clientDate = agreement.signed_date
+    ? dateShort(agreement.signed_date)
+    : "________________";
+
+  const drawSignerBlock = (
+    label: string,
+    name: string,
+    dateText: string,
+    startY: number,
+  ) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    setColor(MUTED);
+    doc.text(label, margin, startY, { charSpace: 1 });
+
+    setStroke(INK);
+    doc.setLineWidth(0.6);
+    doc.line(margin, startY + 36, margin + sigLineW, startY + 36);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    setColor(INK);
+    doc.text(name, margin, startY + 52);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    setColor(MUTED);
+    doc.text(`Date: ${dateText}`, margin, startY + 72);
+  };
+
+  drawSignerBlock(
+    `FOR ${legalEntity.toUpperCase()}`,
+    "Pablo Rivera, Founder",
+    dateShort(agreement.date),
+    y,
+  );
+  y += 112;
+
+  drawSignerBlock(
+    `FOR ${clientName.toUpperCase()}`,
+    clientSigner,
+    clientDate,
+    y,
   );
 
   // Page chrome on all pages
@@ -243,16 +269,16 @@ export function generateAgreementPDF(
     doc.setPage(pg);
     setStroke(BORDER);
     doc.setLineWidth(0.4);
-    doc.line(margin, H - 30, W - margin, H - 30);
+    doc.line(margin, H - 42, W - margin, H - 42);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     setColor(MUTED);
     doc.text(
       `${legalEntity} · Services Agreement ${agreement.number}`,
       margin,
-      H - 18,
+      H - 26,
     );
-    doc.text(`Page ${pg} of ${totalPages}`, W - margin, H - 18, {
+    doc.text(`Page ${pg} of ${totalPages}`, W - margin, H - 26, {
       align: "right",
     });
   }

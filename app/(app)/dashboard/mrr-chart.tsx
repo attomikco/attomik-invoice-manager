@@ -19,9 +19,11 @@ function formatShort(v: number): string {
 export default function MRRChart({
   data,
   prevYear,
+  avg = 0,
 }: {
   data: Point[];
   prevYear: number;
+  avg?: number;
 }) {
   const width = 720;
   const height = 200;
@@ -32,7 +34,9 @@ export default function MRRChart({
   const max = Math.max(
     1,
     ...data.map((d) => Math.max(d.paid + d.draft, d.prev)),
+    avg,
   );
+  const avgY = avg > 0 ? padding.top + (innerH - (avg / max) * innerH) : null;
   const colW = data.length > 0 ? innerW / data.length : 0;
   const barGap = 2;
   const pairW = Math.max(0, colW - 6);
@@ -172,6 +176,35 @@ export default function MRRChart({
             </g>
           );
         })}
+
+        {/* average line (paid + pipeline, over months with activity) */}
+        {avgY !== null && (
+          <g>
+            <line
+              x1={padding.left}
+              x2={width - padding.right}
+              y1={avgY}
+              y2={avgY}
+              stroke="var(--ink)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.55}
+            />
+            <text
+              x={width - padding.right - 4}
+              y={avgY - 4}
+              textAnchor="end"
+              fill="var(--ink)"
+              style={{
+                fontSize: "var(--fs-10)",
+                fontFamily: "var(--font-mono)",
+                opacity: 0.75,
+              }}
+            >
+              avg {formatShort(avg)}
+            </text>
+          </g>
+        )}
       </svg>
       <div
         style={{
@@ -239,6 +272,26 @@ export default function MRRChart({
           />
           {prevYear} paid
         </span>
+        {avg > 0 && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "var(--sp-2)",
+            }}
+          >
+            <span
+              style={{
+                width: 14,
+                height: 2,
+                background: "var(--ink)",
+                opacity: 0.55,
+                display: "inline-block",
+              }}
+            />
+            Avg monthly (paid + pipeline)
+          </span>
+        )}
       </div>
     </div>
   );

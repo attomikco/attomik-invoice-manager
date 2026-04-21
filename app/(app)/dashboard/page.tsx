@@ -130,6 +130,12 @@ export default async function DashboardPage({
     draft: draftByMonth.get(month) ?? 0,
     prev: prevByMonthIdx[idx] ?? 0,
   }));
+  const activeMonths = mrrData.filter((d) => d.paid + d.draft > 0);
+  const mrrAvg =
+    activeMonths.length > 0
+      ? activeMonths.reduce((s, d) => s + d.paid + d.draft, 0) /
+        activeMonths.length
+      : 0;
 
   // ── Aging ─────────────────────────────────────────────────────────
   type Bucket = { key: string; label: string; amount: number; count: number };
@@ -267,7 +273,7 @@ export default async function DashboardPage({
           eyebrow="Revenue"
           title={`Monthly Revenue · ${selectedYear} vs ${prevYear}`}
         >
-          <MRRChart data={mrrData} prevYear={prevYear} />
+          <MRRChart data={mrrData} prevYear={prevYear} avg={mrrAvg} />
         </DashboardCard>
 
         <DashboardCard
