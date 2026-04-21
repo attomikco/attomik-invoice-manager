@@ -99,20 +99,18 @@ export function generateAgreementPDF(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   setColor(MUTED);
-  const attomikAddress =
-    "1111B S Governors Ave STE 7239, Dover, DE 19904, United States";
-  const clientAddress =
-    (agreement.client_address ?? "").trim() || "Address on file";
+  const attomikLines = ["169 Madison Ave, STE 2733", "New York, NY 10016"];
+  const rawClientAddress = (agreement.client_address ?? "").trim();
   const addrMaxW = contentW / 2 - 10;
   const addrLH = 11;
-  const attomikLines = (doc.splitTextToSize(attomikAddress, addrMaxW) as string[]).slice(
-    0,
-    2,
-  );
-  const clientLines = (doc.splitTextToSize(clientAddress, addrMaxW) as string[]).slice(
-    0,
-    2,
-  );
+  const clientLines: string[] = rawClientAddress
+    ? rawClientAddress
+        .split(/\r?\n|,\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .flatMap((seg) => doc.splitTextToSize(seg, addrMaxW) as string[])
+        .slice(0, 2)
+    : ["Address on file"];
   attomikLines.forEach((line, i) => doc.text(line, margin, y + i * addrLH));
   clientLines.forEach((line, i) =>
     doc.text(line, margin + contentW / 2, y + i * addrLH),
@@ -189,11 +187,7 @@ export function generateAgreementPDF(
       doc.setFontSize(8.5);
       setColor(INK);
       doc.text(para, margin, y, { maxWidth: contentW, charSpace: 0.4 });
-      y += 6;
-      setStroke(BORDER);
-      doc.setLineWidth(0.3);
-      doc.line(margin, y, W - margin, y);
-      y += headingSpaceBelow;
+      y += 6 + headingSpaceBelow;
     } else {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
