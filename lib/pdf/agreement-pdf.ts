@@ -156,8 +156,8 @@ export function generateAgreementPDF(
   const paragraphs = renderedTerms.split(/\n\s*\n/);
   const bodySize = 7.5;
   const paraLH = 10;
-  const headingSpaceAbove = 14;
-  const headingSpaceBelow = 3;
+  const headingSpaceAbove = 10;
+  const headingSpaceBelow = 7;
   const paraGap = 4;
   let firstHeading = true;
   for (const para of paragraphs) {
