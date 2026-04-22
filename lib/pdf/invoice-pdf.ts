@@ -260,8 +260,11 @@ export function generateInvoicePDF(
   const sections: { title: string; body: string }[] = [];
   if (settings.payment_instructions)
     sections.push({ title: "PAYMENT INSTRUCTIONS", body: settings.payment_instructions });
-  if (settings.default_payment_terms)
-    sections.push({ title: "PAYMENT TERMS", body: settings.default_payment_terms });
+  if (settings.default_payment_terms) {
+    const dueText = inv.due ? dateShort(inv.due) : "receipt";
+    const body = settings.default_payment_terms.replace(/\{due_date\}/g, dueText);
+    sections.push({ title: "PAYMENT TERMS", body });
+  }
   if (inv.notes) sections.push({ title: "NOTES", body: inv.notes });
 
   sections.forEach((sec) => {

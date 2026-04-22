@@ -202,6 +202,9 @@ export default function SettingsPage() {
                   }
                   placeholder="Net 15"
                 />
+                <div className="caption" style={{ marginTop: "var(--sp-1)" }}>
+                  Use {"{due_date}"} to render the invoice&apos;s due date.
+                </div>
               </div>
             </div>
 
