@@ -94,12 +94,7 @@ export function generateAgreementPDF(
   const colW = (contentW - gutter) / 2;
   const col1X = margin;
   const col2X = margin + colW + gutter; // mirrored across page center
-  const topRuleY = headerTop + logoH + partiesBlockPadding;
-  setStroke(BORDER);
-  doc.setLineWidth(0.6);
-  doc.line(margin, topRuleY, W - margin, topRuleY);
-
-  let y = topRuleY + partiesBlockPadding;
+  let y = headerTop + logoH + partiesBlockPadding * 2;
 
   // Column labels
   doc.setFont("helvetica", "bold");
@@ -137,23 +132,14 @@ export function generateAgreementPDF(
     doc.text(line, col2X, y + i * addrLH),
   );
   const addrRows = Math.max(attomikLines.length, clientLines.length, 1);
-  y += (addrRows - 1) * addrLH + partiesBlockPadding;
-
-  setStroke(BORDER);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, W - margin, y);
-  y += partiesBlockPadding;
+  y += (addrRows - 1) * addrLH + 36;
 
   // ── TERMS & CONDITIONS ──────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   setColor(ACCENT);
   doc.text("TERMS & CONDITIONS", margin, y, { charSpace: 1.2 });
-  y += 6;
-  setStroke(BORDER);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, W - margin, y);
-  y += 18;
+  y += 20;
 
   const termsTemplate = agreement.terms || DEFAULT_LEGAL_TERMS;
   const renderedTerms = renderTerms(termsTemplate, {
