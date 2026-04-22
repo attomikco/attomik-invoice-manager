@@ -144,46 +144,6 @@ export function generateAgreementPDF(
   doc.line(margin, y, W - margin, y);
   y += partiesBlockPadding;
 
-  // ── PROPOSAL REFERENCE ──────────────────────────────────────────
-  const proposalNumber = (agreement.proposal_number ?? "").trim();
-  const proposalDate = agreement.proposal_date
-    ? dateShort(agreement.proposal_date)
-    : "";
-  const agreementNumber = (agreement.number ?? "").trim();
-  const agreementDate = agreement.date ? dateShort(agreement.date) : "";
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  setColor(MUTED);
-  doc.text("REFERENCED PROPOSAL", margin, y, { charSpace: 1 });
-  y += 14;
-
-  // Styled identifier row: Proposal # · Date · Agreement #
-  const idParts: string[] = [];
-  idParts.push(proposalNumber ? `Proposal ${proposalNumber}` : "Proposal (on file)");
-  if (proposalDate) idParts.push(proposalDate);
-  if (agreementNumber) idParts.push(`Agreement ${agreementNumber}`);
-  if (agreementDate) idParts.push(`Dated ${agreementDate}`);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  setColor(INK);
-  doc.text(idParts.join("  ·  "), margin, y);
-  y += 14;
-
-  const refText = proposalNumber
-    ? `This Agreement attaches to and incorporates by reference the Proposal identified above, which sets out the scope, deliverables, and commercial terms agreed between the parties. In the event of any conflict between this Agreement and the referenced Proposal, the terms of this Agreement govern.`
-    : "This Agreement attaches to and incorporates by reference the services proposal shared with the Client, which sets out the scope, deliverables, and commercial terms agreed between the parties. In the event of any conflict between this Agreement and the referenced Proposal, the terms of this Agreement govern.";
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  setColor([70, 70, 70]);
-  const refLines = doc.splitTextToSize(refText, contentW) as string[];
-  const refLH = 13.5;
-  refLines.forEach((line) => {
-    doc.text(line, margin, y);
-    y += refLH;
-  });
-  y += 20;
-
   // ── TERMS & CONDITIONS ──────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -204,17 +164,17 @@ export function generateAgreementPDF(
   });
 
   const paragraphs = renderedTerms.split(/\n\s*\n/);
-  const paraLH = 11.5; // ~1.44 line-height on 8pt body (tightened to fit 2pp)
-  const headingSpaceAbove = 22;
-  const headingSpaceBelow = 7;
-  const paraGap = 7;
+  const bodySize = 7.5;
+  const paraLH = 10;
+  const headingSpaceAbove = 14;
+  const headingSpaceBelow = 3;
+  const paraGap = 4;
   let firstHeading = true;
   for (const para of paragraphs) {
     const isHeading = /^\d+\.\s+[A-Z]/.test(para);
     if (isHeading) {
       if (!firstHeading) y += headingSpaceAbove;
       firstHeading = false;
-      // Keep the heading with its own underline and first line of body.
       const keepWith = 14 + 6 + paraLH;
       const checked = ensureSpace(keepWith, y);
       y = checked.y;
@@ -225,7 +185,7 @@ export function generateAgreementPDF(
       y += 6 + headingSpaceBelow;
     } else {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(bodySize);
       setColor([70, 70, 70]);
       const wrapped = doc.splitTextToSize(para, contentW) as string[];
       for (const line of wrapped) {
