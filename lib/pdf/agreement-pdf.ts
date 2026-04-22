@@ -121,11 +121,10 @@ export function generateAgreementPDF(
   const addrLH = 11;
   const clientLines: string[] = rawClientAddress
     ? rawClientAddress
-        .split(/\r?\n|,\s*/)
+        .split(/\r?\n/)
         .map((s) => s.trim())
         .filter(Boolean)
-        .flatMap((seg) => doc.splitTextToSize(seg, colW) as string[])
-        .slice(0, 2)
+        .flatMap((line) => doc.splitTextToSize(line, colW) as string[])
     : ["Address on file"];
   attomikLines.forEach((line, i) => doc.text(line, col1X, y + i * addrLH));
   clientLines.forEach((line, i) =>
