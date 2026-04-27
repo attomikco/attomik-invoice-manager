@@ -195,7 +195,7 @@ export default function OpportunityForm({
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Estimated phase</label>
+            <label className="form-label">Estimated scope</label>
             <select
               value={draft.estimated_phase}
               onChange={(e) =>
@@ -214,7 +214,7 @@ export default function OpportunityForm({
 
         <div className="form-group">
           <label className="form-label">
-            Estimated value (Phase 1 + first 6 months Phase 2)
+            Estimated value (Phase 1 + first 3 months Phase 2)
           </label>
           <input
             type="number"
