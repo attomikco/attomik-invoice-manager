@@ -48,6 +48,7 @@ import ResourceModal, {
   EMPTY_RESOURCE_DRAFT,
   type ResourceDraft,
 } from "./resource-modal";
+import ParseEmailModal, { type ParseResult } from "./parse-email-modal";
 
 const RESOURCE_LABEL: Record<ResourceType, string> = {
   drive: "Google Drive",
@@ -142,6 +143,9 @@ export default function ClientHubPage() {
   const [editingRes, setEditingRes] = useState<ResourceDraft | null>(null);
   const [savingRes, setSavingRes] = useState(false);
   const [deletingRes, setDeletingRes] = useState<ClientResource | null>(null);
+
+  const [parseOpen, setParseOpen] = useState(false);
+  const [savingParsed, setSavingParsed] = useState(false);
 
   // Inline hub_notes editor
   const [hubNotesDraft, setHubNotesDraft] = useState("");
@@ -524,6 +528,68 @@ export default function ClientHubPage() {
     await load();
   }
 
+  // Bulk-insert from the paste-email parser. Each section's checked rows go
+  // into its respective table; we surface an alert and stop on the first
+  // error rather than half-applying.
+  async function handleApplyParsed(result: ParseResult) {
+    if (!client) return;
+    setSavingParsed(true);
+    try {
+      if (result.platforms.length > 0) {
+        const { error } = await supabase
+          .from("client_platform_access")
+          .insert(
+            result.platforms.map((p) => ({
+              client_id: client.id,
+              platform: p.platform,
+              login_email: p.login_email || null,
+              access_level: p.access_level || null,
+              status: p.status,
+              login_url: p.login_url || null,
+              notes: p.notes || null,
+            })),
+          );
+        if (error) throw error;
+      }
+      if (result.credentials.length > 0) {
+        const { error } = await supabase.from("client_credentials").insert(
+          result.credentials.map((c) => ({
+            client_id: client.id,
+            label: c.label || null,
+            url: c.url || null,
+            username: c.username || null,
+            password: c.password || null,
+            notes: c.notes || null,
+          })),
+        );
+        if (error) throw error;
+      }
+      if (result.resources.length > 0) {
+        const { error } = await supabase.from("client_resources").insert(
+          result.resources.map((r) => ({
+            client_id: client.id,
+            label: r.label || null,
+            url: r.url || null,
+            type: r.type,
+            notes: r.notes || null,
+          })),
+        );
+        if (error) throw error;
+      }
+      setParseOpen(false);
+      await load();
+    } catch (err) {
+      console.error("Apply parsed entries failed:", err);
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Unknown error";
+      alert(`Couldn't add some rows: ${message}`);
+    } finally {
+      setSavingParsed(false);
+    }
+  }
+
   // ── render ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -813,10 +879,21 @@ export default function ClientHubPage() {
       <SectionHeader
         title="Platform access"
         right={
-          <button className="btn btn-secondary btn-xs" onClick={startNewPA}>
-            <Plus size={12} strokeWidth={2} />
-            Add platform access
-          </button>
+          <div
+            className="flex gap-2"
+            style={{ alignItems: "center" }}
+          >
+            <button
+              className="btn btn-ghost btn-xs"
+              onClick={() => setParseOpen(true)}
+            >
+              Paste access email
+            </button>
+            <button className="btn btn-secondary btn-xs" onClick={startNewPA}>
+              <Plus size={12} strokeWidth={2} />
+              Add platform access
+            </button>
+          </div>
         }
       />
       <div className="table-wrapper table-compact">
@@ -1375,6 +1452,12 @@ export default function ClientHubPage() {
         onChange={setEditingRes}
         onClose={() => setEditingRes(null)}
         onSubmit={handleSaveRes}
+      />
+      <ParseEmailModal
+        open={parseOpen}
+        saving={savingParsed}
+        onClose={() => setParseOpen(false)}
+        onApply={handleApplyParsed}
       />
 
       <ConfirmDialog
