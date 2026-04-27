@@ -24,6 +24,7 @@ import {
   type Service,
   type SettingsMap,
 } from "@/lib/types";
+import { DEFAULT_PROPOSAL_INTRO } from "@/lib/defaults/proposal-intro";
 import ProposalForm, {
   type ProposalDraft,
 } from "./proposal-form";
@@ -44,7 +45,7 @@ function emptyDraft(number: string): ProposalDraft {
     client_name: "",
     client_email: "",
     client_company: "",
-    intro: "",
+    intro: DEFAULT_PROPOSAL_INTRO,
     notes: "",
     p1_items: [{ ...EMPTY_LINE }],
     p1_discount_amount: "",
