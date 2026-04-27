@@ -336,8 +336,10 @@ export default function AgreementsPage() {
     setPreviewing(null);
   }
 
-  function sendEmail(a: Agreement) {
-    if (!a.client_email) return;
+  // Build subject + body using the agreement_email_* settings templates.
+  // Shared by the legacy mailto: send flow and the new "Generate email"
+  // flow that opens Gmail compose with the PDF.
+  function buildEmailParts(a: Agreement) {
     const subjectTemplate =
       settings.agreement_email_subject ??
       "Welcome to Attomik — Services Agreement for {client_company}";
@@ -365,9 +367,18 @@ export default function AgreementsPage() {
     };
     const fill = (tpl: string) =>
       tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
-    const subject = encodeURIComponent(fill(subjectTemplate));
-    const body = encodeURIComponent(fill(bodyTemplate));
-    window.location.href = `mailto:${a.client_email}?subject=${subject}&body=${body}`;
+    return {
+      subject: fill(subjectTemplate),
+      body: fill(bodyTemplate),
+    };
+  }
+
+  function sendEmail(a: Agreement) {
+    if (!a.client_email) return;
+    const { subject, body } = buildEmailParts(a);
+    window.location.href = `mailto:${a.client_email}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(body)}`;
     // Mark as sent if currently draft
     if (a.status === "draft") {
       supabase
@@ -376,6 +387,42 @@ export default function AgreementsPage() {
         .eq("id", a.id)
         .then(() => load());
     }
+  }
+
+  // "Generate email" — downloads the PDF, then opens Gmail compose for
+  // account@attomik.co with the client as To and Pablo as Cc, subject + body
+  // prefilled. User drags the just-downloaded PDF into the compose window.
+  // Auto-flips draft → sent like the mailto path does.
+  async function generateEmail(a: Agreement) {
+    if (!a.client_email) return;
+    try {
+      const { generateAgreementPDF } = await import("@/lib/pdf/agreement-pdf");
+      generateAgreementPDF(a, settings);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    }
+    const { subject, body } = buildEmailParts(a);
+    const url =
+      "https://mail.google.com/mail/u/account@attomik.co/?view=cm&fs=1" +
+      `&to=${encodeURIComponent(a.client_email)}` +
+      `&cc=${encodeURIComponent("pablo@attomik.co")}` +
+      `&su=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    if (a.status === "draft") {
+      await supabase
+        .from("agreements")
+        .update({ status: "sent" })
+        .eq("id", a.id);
+      await load();
+    }
+  }
+
+  async function handleGenerateEmailFromForm() {
+    if (!editing?.id) return;
+    const a = agreements.find((x) => x.id === editing.id);
+    if (!a) return;
+    await generateEmail(a);
   }
 
   function statusLabel(s: AgreementStatus): string {
@@ -573,6 +620,7 @@ export default function AgreementsPage() {
         onChange={setEditing}
         onClose={() => setEditing(null)}
         onSubmit={handleSave}
+        onGenerateEmail={handleGenerateEmailFromForm}
       />
 
       <AgreementPreview

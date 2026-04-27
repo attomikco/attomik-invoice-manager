@@ -58,6 +58,7 @@ export default function AgreementForm({
   onChange,
   onClose,
   onSubmit,
+  onGenerateEmail,
 }: {
   open: boolean;
   draft: AgreementDraft | null;
@@ -68,6 +69,7 @@ export default function AgreementForm({
   onChange: (d: AgreementDraft) => void;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
+  onGenerateEmail: () => void;
 }) {
   const computedP1Subtotal = useMemo(() => {
     if (!draft) return 0;
@@ -172,6 +174,17 @@ export default function AgreementForm({
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
+          {draft.id && draft.client_email && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onGenerateEmail}
+              disabled={saving}
+              title="Download the agreement PDF and open a Gmail compose window prefilled to the client"
+            >
+              Generate email
+            </button>
+          )}
           <button
             type="submit"
             form="agreement-form"
