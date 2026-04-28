@@ -19,7 +19,9 @@ import {
   EMPTY_LINE,
   toLineItemDraft,
   fromLineItemDraft,
+  type Client,
   type LineItemDraft,
+  type NewClientDraft,
   type Proposal,
   type Service,
   type SettingsMap,
@@ -42,6 +44,7 @@ function emptyDraft(number: string): ProposalDraft {
     date: today,
     valid_until: valid,
     status: "draft",
+    client_id: "",
     client_name: "",
     client_email: "",
     client_company: "",
@@ -70,6 +73,7 @@ export default function ProposalsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [settings, setSettings] = useState<SettingsMap>({});
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ProposalDraft | null>(null);
@@ -99,14 +103,16 @@ export default function ProposalsPage() {
         servicesError.code,
       );
     }
-    const [{ data: props }, { data: stg }] = await Promise.all([
+    const [{ data: props }, { data: stg }, { data: cls }] = await Promise.all([
       supabase
         .from("proposals")
         .select("*")
         .order("number", { ascending: false }),
       supabase.from("settings").select("key, value"),
+      supabase.from("clients").select("*").order("name", { ascending: true }),
     ]);
     setProposals((props as Proposal[] | null) ?? []);
+    setClients((cls as Client[] | null) ?? []);
     setServices((servicesData as Service[] | null) ?? []);
     const map: SettingsMap = {};
     for (const row of (stg as { key: string; value: string }[] | null) ?? []) {
@@ -225,6 +231,7 @@ export default function ProposalsPage() {
       date: p.date ?? dateISO(),
       valid_until: p.valid_until ?? dateISO(addDays(new Date(), 30)),
       status: p.status ?? "draft",
+      client_id: p.client_id ?? "",
       client_name: p.client_name ?? "",
       client_email: p.client_email ?? "",
       client_company: p.client_company ?? "",
@@ -274,6 +281,9 @@ export default function ProposalsPage() {
       date: editing.date,
       valid_until: editing.valid_until || null,
       status: editing.status,
+      // proposals.client_id is nullable on purpose — empty string means
+      // "Open prospect", which writes NULL.
+      client_id: editing.client_id || null,
       client_name: editing.client_name,
       client_email: editing.client_email,
       client_company: editing.client_company,
@@ -311,6 +321,30 @@ export default function ProposalsPage() {
     }
     setEditing(null);
     await load();
+  }
+
+  async function handleCreateClient(d: NewClientDraft): Promise<Client | null> {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        name: d.name.trim(),
+        company: d.company.trim() || null,
+        email: d.email.trim() || null,
+        address: d.address.trim() || null,
+        payment_terms: d.payment_terms.trim() || null,
+        status: "active",
+        emails: [],
+        monthly_value: 0,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("Create client failed:", error);
+      alert(`Create client failed: ${error.message}`);
+      return null;
+    }
+    await load();
+    return data as Client;
   }
 
   async function handleDelete() {
@@ -366,19 +400,43 @@ export default function ProposalsPage() {
     }));
     const finalNumber = nextInvoiceNumber(nums, "ATMSA").replace(/^#/, "");
 
-    const emailKey = (p.client_email ?? "").trim().toLowerCase();
-    const companyKey = (p.client_company ?? "").trim().toLowerCase();
+    // Resolve the client. Prefer the proposal's client_id (the FK is now
+    // populated for any proposal that went through the picker). Fall back
+    // to email/company match for any pre-FK proposal.
+    let resolvedClientId: string | null = p.client_id ?? null;
     let clientAddress: string | null = null;
-    if (emailKey || companyKey) {
-      const { data: clientRows } = await supabase
+    if (resolvedClientId) {
+      const { data: clientRow } = await supabase
         .from("clients")
-        .select("email, company, address");
-      const match = (clientRows ?? []).find((c) => {
-        const ce = (c.email ?? "").toLowerCase();
-        const cc = (c.company ?? "").toLowerCase();
-        return (emailKey && ce === emailKey) || (companyKey && cc === companyKey);
-      });
-      clientAddress = (match?.address ?? null) || null;
+        .select("address")
+        .eq("id", resolvedClientId)
+        .maybeSingle();
+      clientAddress = (clientRow?.address as string | null) ?? null;
+    } else {
+      const emailKey = (p.client_email ?? "").trim().toLowerCase();
+      const companyKey = (p.client_company ?? "").trim().toLowerCase();
+      if (emailKey || companyKey) {
+        const { data: clientRows } = await supabase
+          .from("clients")
+          .select("id, email, company, address");
+        const match = (clientRows ?? []).find((c) => {
+          const ce = (c.email ?? "").toLowerCase();
+          const cc = (c.company ?? "").toLowerCase();
+          return (
+            (emailKey && ce === emailKey) || (companyKey && cc === companyKey)
+          );
+        });
+        if (match) {
+          resolvedClientId = (match.id as string) ?? null;
+          clientAddress = (match.address as string | null) ?? null;
+        }
+      }
+    }
+    if (!resolvedClientId) {
+      alert(
+        "Couldn't link this proposal to a client — the agreement can't be created without one. Open the proposal and pick a client first.",
+      );
+      return;
     }
 
     const payload = {
@@ -389,6 +447,7 @@ export default function ProposalsPage() {
       proposal_number: p.number,
       proposal_date: p.date,
       opportunity_id: p.opportunity_id,
+      client_id: resolvedClientId,
       client_name: p.client_name,
       client_email: p.client_email,
       client_company: p.client_company,
@@ -586,10 +645,12 @@ export default function ProposalsPage() {
         open={!!editing}
         draft={editing}
         services={services}
+        clients={clients}
         saving={saving}
         onChange={setEditing}
         onClose={() => setEditing(null)}
         onSubmit={handleSave}
+        onCreateClient={handleCreateClient}
       />
 
       <ProposalPreview

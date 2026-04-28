@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { currency } from "@/lib/format";
 import {
@@ -8,12 +9,14 @@ import {
   KICKOFF_CATEGORIES,
 } from "@/lib/defaults/kickoff-checklist";
 import { DEFAULT_LEGAL_TERMS } from "@/lib/defaults/legal-terms";
-import type {
-  AgreementStatus,
-  Client,
-  KickoffItem,
-  Phase1Item,
-  SettingsMap,
+import {
+  EMPTY_NEW_CLIENT,
+  type AgreementStatus,
+  type Client,
+  type KickoffItem,
+  type NewClientDraft,
+  type Phase1Item,
+  type SettingsMap,
 } from "@/lib/types";
 
 export type AgreementDraft = {
@@ -59,6 +62,7 @@ export default function AgreementForm({
   onClose,
   onSubmit,
   onGenerateEmail,
+  onCreateClient,
 }: {
   open: boolean;
   draft: AgreementDraft | null;
@@ -70,7 +74,29 @@ export default function AgreementForm({
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
   onGenerateEmail: () => void;
+  onCreateClient: (draft: NewClientDraft) => Promise<Client | null>;
 }) {
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientDraft, setNewClientDraft] = useState<NewClientDraft>(
+    EMPTY_NEW_CLIENT,
+  );
+  const [savingNewClient, setSavingNewClient] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setCreatingClient(false);
+      setNewClientDraft(EMPTY_NEW_CLIENT);
+      setSavingNewClient(false);
+    }
+  }, [open]);
+
+  const sortedClients = useMemo(
+    () =>
+      [...clients].sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? ""),
+      ),
+    [clients],
+  );
   const computedP1Subtotal = useMemo(() => {
     if (!draft) return 0;
     return draft.phase1_items.reduce(
@@ -89,11 +115,21 @@ export default function AgreementForm({
   function pickClient(id: string) {
     if (!draft) return;
     if (!id) {
-      onChange({ ...draft, client_id: "" });
+      onChange({
+        ...draft,
+        client_id: "",
+        client_name: "",
+        client_email: "",
+        client_company: "",
+        client_address: "",
+      });
       return;
     }
     const c = clients.find((x) => x.id === id);
     if (!c) return;
+    // Dual-write: persist client_id (required, the FK) and snapshot the
+    // legacy strings. The strings stay editable below if the user wants
+    // the agreement to capture a different snapshot at signing time.
     onChange({
       ...draft,
       client_id: id,
@@ -102,6 +138,20 @@ export default function AgreementForm({
       client_company: c.company ?? "",
       client_address: c.address ?? "",
     });
+  }
+
+  async function handleCreateClient() {
+    if (!newClientDraft.name.trim()) {
+      alert("Client name is required.");
+      return;
+    }
+    setSavingNewClient(true);
+    const created = await onCreateClient(newClientDraft);
+    setSavingNewClient(false);
+    if (!created) return;
+    pickClient(created.id);
+    setCreatingClient(false);
+    setNewClientDraft(EMPTY_NEW_CLIENT);
   }
 
   function updateP1(i: number, patch: Partial<Phase1Item>) {
@@ -249,20 +299,141 @@ export default function AgreementForm({
         </div>
 
         <div className="form-group">
-          <label className="form-label">Client (from list)</label>
+          <label className="form-label">Client</label>
           <select
+            required
             value={draft.client_id}
             onChange={(e) => pickClient(e.target.value)}
           >
-            <option value="">— choose or enter manually —</option>
-            {clients.map((c) => (
+            <option value="">— choose client —</option>
+            {sortedClients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
-                {c.company ? ` · ${c.company}` : ""}
+                {c.name ?? "(no name)"}
+                {c.company ? ` — ${c.company}` : ""}
               </option>
             ))}
           </select>
         </div>
+
+        {!creatingClient ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={() => setCreatingClient(true)}
+            style={{
+              alignSelf: "flex-start",
+              marginTop: "calc(-1 * var(--sp-3))",
+              gap: 4,
+            }}
+          >
+            <Plus size={12} strokeWidth={2} />
+            New client
+          </button>
+        ) : (
+          <div
+            className="card-sm"
+            style={{
+              background: "var(--gray-150)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--sp-3)",
+            }}
+          >
+            <div className="label mono">Create new client</div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  value={newClientDraft.name}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      name: e.target.value,
+                    })
+                  }
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Company</label>
+                <input
+                  value={newClientDraft.company}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      company: e.target.value,
+                    })
+                  }
+                  placeholder="Legal entity"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                value={newClientDraft.email}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    email: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Address</label>
+              <textarea
+                rows={2}
+                value={newClientDraft.address}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    address: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Payment terms</label>
+              <input
+                value={newClientDraft.payment_terms}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    payment_terms: e.target.value,
+                  })
+                }
+                placeholder="Net 15"
+              />
+            </div>
+            <div
+              className="flex gap-2"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => {
+                  setCreatingClient(false);
+                  setNewClientDraft(EMPTY_NEW_CLIENT);
+                }}
+                disabled={savingNewClient}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-xs"
+                onClick={handleCreateClient}
+                disabled={savingNewClient}
+              >
+                {savingNewClient ? "Creating…" : "Create & select"}
+              </button>
+            </div>
+          </div>
+        )}
         <div className="grid-2">
           <div className="form-group">
             <label className="form-label">Client name</label>

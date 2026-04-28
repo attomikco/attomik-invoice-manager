@@ -19,6 +19,7 @@ import type {
   Agreement,
   AgreementStatus,
   Client,
+  NewClientDraft,
   SettingsMap,
 } from "@/lib/types";
 import AgreementForm, {
@@ -136,6 +137,7 @@ function buildPayload(d: AgreementDraft) {
     proposal_number: d.proposal_number,
     proposal_date: d.proposal_date,
     opportunity_id: d.opportunity_id,
+    client_id: d.client_id || null,
     client_name: d.client_name || null,
     client_email: d.client_email || null,
     client_company: d.client_company || null,
@@ -260,6 +262,10 @@ export default function AgreementsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
+    if (!editing.client_id) {
+      alert("Please select a client.");
+      return;
+    }
     setSaving(true);
     const payload = buildPayload(editing);
     const { error } = editing.id
@@ -423,6 +429,30 @@ export default function AgreementsPage() {
     const a = agreements.find((x) => x.id === editing.id);
     if (!a) return;
     await generateEmail(a);
+  }
+
+  async function handleCreateClient(d: NewClientDraft): Promise<Client | null> {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        name: d.name.trim(),
+        company: d.company.trim() || null,
+        email: d.email.trim() || null,
+        address: d.address.trim() || null,
+        payment_terms: d.payment_terms.trim() || null,
+        status: "active",
+        emails: [],
+        monthly_value: 0,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("Create client failed:", error);
+      alert(`Create client failed: ${error.message}`);
+      return null;
+    }
+    await load();
+    return data as Client;
   }
 
   function statusLabel(s: AgreementStatus): string {
@@ -621,6 +651,7 @@ export default function AgreementsPage() {
         onClose={() => setEditing(null)}
         onSubmit={handleSave}
         onGenerateEmail={handleGenerateEmailFromForm}
+        onCreateClient={handleCreateClient}
       />
 
       <AgreementPreview

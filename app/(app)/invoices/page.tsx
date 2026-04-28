@@ -15,6 +15,7 @@ import { Copy, Eye, Pencil, Trash2 } from "lucide-react";
 import {
   type Client,
   type Invoice,
+  type NewClientDraft,
   type Service,
   type SettingsMap,
   fromLineItemDraft,
@@ -141,7 +142,12 @@ export default function InvoicesPage() {
   }
 
   function startEdit(inv: Invoice) {
+    // Prefer the FK now that invoices.client_id is populated. Fall back to
+    // the legacy string match for any historical row that somehow predates
+    // the backfill.
     const matchClient =
+      (inv.client_id &&
+        clients.find((c) => c.id === inv.client_id)) ||
       (inv.client_email &&
         clients.find(
           (c) =>
@@ -211,6 +217,7 @@ export default function InvoicesPage() {
       date: dateISO(),
       due: dateISO(addDays(new Date(), 15)),
       status: "draft",
+      client_id: inv.client_id,
       client_name: inv.client_name,
       client_email: inv.client_email,
       client_company: inv.client_company,
@@ -219,19 +226,31 @@ export default function InvoicesPage() {
       discount: inv.discount ?? 0,
       notes: inv.notes,
     };
-    await supabase.from("invoices").insert(payload);
+    const { error } = await supabase.from("invoices").insert(payload);
+    if (error) {
+      console.error("Duplicate invoice failed:", error);
+      alert(`Duplicate failed: ${error.message}`);
+      return;
+    }
     await load();
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
+    if (!editing.client_id) {
+      alert("Please select a client.");
+      return;
+    }
     setSaving(true);
+    // Dual-write: the FK is the source of truth; the legacy strings are
+    // snapshotted for now as a safety net. Both go in the row.
     const payload = {
       number: editing.number,
       date: editing.date,
       due: editing.due || null,
       status: editing.status,
+      client_id: editing.client_id,
       client_name: editing.client_name,
       client_email: editing.client_email,
       client_company: editing.client_company,
@@ -240,14 +259,41 @@ export default function InvoicesPage() {
       discount: Number(editing.discount) || 0,
       notes: editing.notes,
     };
-    if (editing.id) {
-      await supabase.from("invoices").update(payload).eq("id", editing.id);
-    } else {
-      await supabase.from("invoices").insert(payload);
-    }
+    const { error } = editing.id
+      ? await supabase.from("invoices").update(payload).eq("id", editing.id)
+      : await supabase.from("invoices").insert(payload);
     setSaving(false);
+    if (error) {
+      console.error("Save invoice failed:", error);
+      alert(`Save failed: ${error.message}`);
+      return;
+    }
     setEditing(null);
     await load();
+  }
+
+  async function handleCreateClient(d: NewClientDraft): Promise<Client | null> {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        name: d.name.trim(),
+        company: d.company.trim() || null,
+        email: d.email.trim() || null,
+        address: d.address.trim() || null,
+        payment_terms: d.payment_terms.trim() || null,
+        status: "active",
+        emails: [],
+        monthly_value: 0,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("Create client failed:", error);
+      alert(`Create client failed: ${error.message}`);
+      return null;
+    }
+    await load(); // refresh the dropdown
+    return data as Client;
   }
 
   async function handleDelete() {
@@ -394,6 +440,7 @@ export default function InvoicesPage() {
         onChange={setEditing}
         onClose={() => setEditing(null)}
         onSubmit={handleSave}
+        onCreateClient={handleCreateClient}
       />
 
       <InvoicePreview

@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { currencyCompact, lineSubtotal } from "@/lib/format";
 import {
   EMPTY_LINE,
+  EMPTY_NEW_CLIENT,
+  type Client,
   type LineItemDraft,
+  type NewClientDraft,
   type Service,
 } from "@/lib/types";
 
@@ -15,6 +19,7 @@ export type ProposalDraft = {
   date: string;
   valid_until: string;
   status: string;
+  client_id: string;
   client_name: string;
   client_email: string;
   client_company: string;
@@ -99,19 +104,45 @@ export default function ProposalForm({
   open,
   draft,
   services,
+  clients,
   saving,
   onChange,
   onClose,
   onSubmit,
+  onCreateClient,
 }: {
   open: boolean;
   draft: ProposalDraft | null;
   services: Service[];
+  clients: Client[];
   saving: boolean;
   onChange: (d: ProposalDraft) => void;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
+  onCreateClient: (draft: NewClientDraft) => Promise<Client | null>;
 }) {
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientDraft, setNewClientDraft] = useState<NewClientDraft>(
+    EMPTY_NEW_CLIENT,
+  );
+  const [savingNewClient, setSavingNewClient] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setCreatingClient(false);
+      setNewClientDraft(EMPTY_NEW_CLIENT);
+      setSavingNewClient(false);
+    }
+  }, [open]);
+
+  const sortedClients = useMemo(
+    () =>
+      [...clients].sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? ""),
+      ),
+    [clients],
+  );
+
   const p1Subtotal = useMemo(() => {
     if (!draft) return 0;
     return lineSubtotal(
@@ -132,6 +163,42 @@ export default function ProposalForm({
   }, [draft]);
 
   if (!draft) return null;
+
+  function pickClient(id: string) {
+    if (!draft) return;
+    if (!id) {
+      // "Open prospect" — clear the FK but leave the manual fields alone
+      // so the user can keep typing prospect details freely.
+      onChange({ ...draft, client_id: "" });
+      return;
+    }
+    const c = clients.find((x) => x.id === id);
+    if (!c) return;
+    // Real client picked — write client_id and snapshot the legacy strings
+    // from the client row. Manual fields stay editable below for any
+    // last-mile tweaks.
+    onChange({
+      ...draft,
+      client_id: id,
+      client_name: c.name ?? "",
+      client_email: c.email ?? "",
+      client_company: c.company ?? "",
+    });
+  }
+
+  async function handleCreateClient() {
+    if (!newClientDraft.name.trim()) {
+      alert("Client name is required.");
+      return;
+    }
+    setSavingNewClient(true);
+    const created = await onCreateClient(newClientDraft);
+    setSavingNewClient(false);
+    if (!created) return;
+    pickClient(created.id);
+    setCreatingClient(false);
+    setNewClientDraft(EMPTY_NEW_CLIENT);
+  }
 
   const p1DiscountAmount = parseFloat(draft.p1_discount_amount || "0") || 0;
   const p1NetTotal = Math.max(0, p1Subtotal - p1DiscountAmount);
@@ -281,18 +348,155 @@ export default function ProposalForm({
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Status</label>
-          <select
-            value={draft.status}
-            onChange={(e) => onChange({ ...draft, status: e.target.value })}
-          >
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="accepted">Accepted</option>
-            <option value="declined">Declined</option>
-          </select>
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label">Status</label>
+            <select
+              value={draft.status}
+              onChange={(e) => onChange({ ...draft, status: e.target.value })}
+            >
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="accepted">Accepted</option>
+              <option value="declined">Declined</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Client (optional)</label>
+            <select
+              value={draft.client_id}
+              onChange={(e) => pickClient(e.target.value)}
+            >
+              <option value="">— Open prospect (no client yet) —</option>
+              {sortedClients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name ?? "(no name)"}
+                  {c.company ? ` — ${c.company}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        {!creatingClient ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={() => setCreatingClient(true)}
+            style={{
+              alignSelf: "flex-start",
+              marginTop: "calc(-1 * var(--sp-3))",
+              gap: 4,
+            }}
+          >
+            <Plus size={12} strokeWidth={2} />
+            New client
+          </button>
+        ) : (
+          <div
+            className="card-sm"
+            style={{
+              background: "var(--gray-150)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--sp-3)",
+            }}
+          >
+            <div className="label mono">Create new client</div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  value={newClientDraft.name}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      name: e.target.value,
+                    })
+                  }
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Company</label>
+                <input
+                  value={newClientDraft.company}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      company: e.target.value,
+                    })
+                  }
+                  placeholder="Legal entity"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                value={newClientDraft.email}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    email: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Address</label>
+              <textarea
+                rows={2}
+                value={newClientDraft.address}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    address: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Payment terms</label>
+              <input
+                value={newClientDraft.payment_terms}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    payment_terms: e.target.value,
+                  })
+                }
+                placeholder="Net 15"
+              />
+            </div>
+            <div
+              className="flex gap-2"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => {
+                  setCreatingClient(false);
+                  setNewClientDraft(EMPTY_NEW_CLIENT);
+                }}
+                disabled={savingNewClient}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-xs"
+                onClick={handleCreateClient}
+                disabled={savingNewClient}
+              >
+                {savingNewClient ? "Creating…" : "Create & select"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid-3">
           <div className="form-group">

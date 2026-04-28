@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { currency, lineSubtotal } from "@/lib/format";
 import { Modal } from "@/components/modal";
 import {
   EMPTY_LINE,
+  EMPTY_NEW_CLIENT,
   type Client,
   type LineItemDraft,
+  type NewClientDraft,
   type Service,
 } from "@/lib/types";
 
@@ -36,6 +39,7 @@ export default function InvoiceForm({
   onChange,
   onClose,
   onSubmit,
+  onCreateClient,
 }: {
   open: boolean;
   draft: InvoiceDraft | null;
@@ -46,7 +50,31 @@ export default function InvoiceForm({
   onChange: (d: InvoiceDraft) => void;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
+  onCreateClient: (draft: NewClientDraft) => Promise<Client | null>;
 }) {
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientDraft, setNewClientDraft] = useState<NewClientDraft>(
+    EMPTY_NEW_CLIENT,
+  );
+  const [savingNewClient, setSavingNewClient] = useState(false);
+
+  // Reset the inline-create section whenever the modal closes
+  useEffect(() => {
+    if (!open) {
+      setCreatingClient(false);
+      setNewClientDraft(EMPTY_NEW_CLIENT);
+      setSavingNewClient(false);
+    }
+  }, [open]);
+
+  const sortedClients = useMemo(
+    () =>
+      [...clients].sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? ""),
+      ),
+    [clients],
+  );
+
   const subtotal = useMemo(() => {
     if (!draft) return 0;
     return lineSubtotal(
@@ -62,15 +90,26 @@ export default function InvoiceForm({
   const discPct = Number(draft.discount) || 0;
   const discAmt = subtotal * (discPct / 100);
   const total = Math.max(0, subtotal - discAmt);
+  const selectedClient = clients.find((c) => c.id === draft.client_id);
 
   function pickClient(id: string) {
     if (!draft) return;
     if (!id) {
-      onChange({ ...draft, client_id: "" });
+      onChange({
+        ...draft,
+        client_id: "",
+        client_name: "",
+        client_email: "",
+        client_company: "",
+        client_address: "",
+      });
       return;
     }
     const c = clients.find((x) => x.id === id);
     if (!c) return;
+    // Dual-write: persist client_id (the FK) and snapshot the legacy
+    // string fields too. The strings stay as a safety net until they're
+    // dropped in a follow-up cleanup.
     onChange({
       ...draft,
       client_id: id,
@@ -79,6 +118,20 @@ export default function InvoiceForm({
       client_company: c.company ?? "",
       client_address: c.address ?? "",
     });
+  }
+
+  async function handleCreateClient() {
+    if (!newClientDraft.name.trim()) {
+      alert("Client name is required.");
+      return;
+    }
+    setSavingNewClient(true);
+    const created = await onCreateClient(newClientDraft);
+    setSavingNewClient(false);
+    if (!created) return; // parent already alerted on error
+    pickClient(created.id);
+    setCreatingClient(false);
+    setNewClientDraft(EMPTY_NEW_CLIENT);
   }
 
   function updateLine(i: number, patch: Partial<LineItemDraft>) {
@@ -97,8 +150,6 @@ export default function InvoiceForm({
     }
     const s = services.find((x) => x.id === id);
     if (!s) return;
-    // eslint-disable-next-line no-console
-    console.log("[invoice-form] picked service", s);
     updateLine(i, {
       service_id: id,
       title: s.name ?? "",
@@ -191,65 +242,202 @@ export default function InvoiceForm({
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Client (from list)</label>
+            <label className="form-label">Client</label>
             <select
+              required
               value={draft.client_id}
               onChange={(e) => pickClient(e.target.value)}
             >
-              <option value="">— choose or enter manually —</option>
-              {clients.map((c) => (
+              <option value="">— choose client —</option>
+              {sortedClients.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.company ? ` · ${c.company}` : ""}
+                  {c.name ?? "(no name)"}
+                  {c.company ? ` — ${c.company}` : ""}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="grid-2">
-          <div className="form-group">
-            <label className="form-label">Client name</label>
-            <input
-              value={draft.client_name}
-              onChange={(e) =>
-                onChange({ ...draft, client_name: e.target.value })
-              }
-            />
+        {!creatingClient ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={() => setCreatingClient(true)}
+            style={{
+              alignSelf: "flex-start",
+              marginTop: "calc(-1 * var(--sp-3))",
+              gap: 4,
+            }}
+          >
+            <Plus size={12} strokeWidth={2} />
+            New client
+          </button>
+        ) : (
+          <div
+            className="card-sm"
+            style={{
+              background: "var(--gray-150)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--sp-3)",
+            }}
+          >
+            <div className="label mono">Create new client</div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  value={newClientDraft.name}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Acme Coffee"
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Company</label>
+                <input
+                  value={newClientDraft.company}
+                  onChange={(e) =>
+                    setNewClientDraft({
+                      ...newClientDraft,
+                      company: e.target.value,
+                    })
+                  }
+                  placeholder="Legal entity"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                value={newClientDraft.email}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    email: e.target.value,
+                  })
+                }
+                placeholder="billing@…"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Address</label>
+              <textarea
+                rows={2}
+                value={newClientDraft.address}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    address: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Payment terms</label>
+              <input
+                value={newClientDraft.payment_terms}
+                onChange={(e) =>
+                  setNewClientDraft({
+                    ...newClientDraft,
+                    payment_terms: e.target.value,
+                  })
+                }
+                placeholder="Net 15"
+              />
+            </div>
+            <div
+              className="flex gap-2"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => {
+                  setCreatingClient(false);
+                  setNewClientDraft(EMPTY_NEW_CLIENT);
+                }}
+                disabled={savingNewClient}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-xs"
+                onClick={handleCreateClient}
+                disabled={savingNewClient}
+              >
+                {savingNewClient ? "Creating…" : "Create & select"}
+              </button>
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Client email</label>
-            <input
-              type="email"
-              value={draft.client_email}
-              onChange={(e) =>
-                onChange({ ...draft, client_email: e.target.value })
-              }
-            />
-          </div>
-        </div>
+        )}
 
-        <div className="grid-2">
-          <div className="form-group">
-            <label className="form-label">Company</label>
-            <input
-              value={draft.client_company}
-              onChange={(e) =>
-                onChange({ ...draft, client_company: e.target.value })
-              }
-            />
+        {selectedClient && (
+          <div
+            className="card-sm"
+            style={{
+              background: "var(--paper)",
+              border: "1px solid var(--border)",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "var(--sp-2) var(--sp-4)",
+            }}
+          >
+            <div>
+              <div className="label mono">Bill to</div>
+              <div
+                style={{
+                  fontWeight: "var(--fw-semibold)",
+                  marginTop: "var(--sp-1)",
+                }}
+              >
+                {selectedClient.name ?? "—"}
+              </div>
+              {selectedClient.company && (
+                <div className="caption">{selectedClient.company}</div>
+              )}
+            </div>
+            <div>
+              <div className="label mono">Contact</div>
+              {selectedClient.email && (
+                <div
+                  className="caption mono"
+                  style={{ marginTop: "var(--sp-1)" }}
+                >
+                  {selectedClient.email}
+                </div>
+              )}
+              {selectedClient.address && (
+                <div
+                  className="caption"
+                  style={{ whiteSpace: "pre-line" }}
+                >
+                  {selectedClient.address}
+                </div>
+              )}
+            </div>
+            <div
+              className="caption"
+              style={{
+                gridColumn: "1 / -1",
+                color: "var(--subtle)",
+                fontSize: "var(--fs-11)",
+              }}
+            >
+              These details snapshot onto the invoice when you save. Update
+              them on the client&rsquo;s page if anything is wrong.
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Address</label>
-            <textarea
-              rows={2}
-              value={draft.client_address}
-              onChange={(e) =>
-                onChange({ ...draft, client_address: e.target.value })
-              }
-            />
-          </div>
-        </div>
+        )}
 
         <div className="section-header" style={{ margin: 0 }}>
           <div className="section-header-bar" />
@@ -283,7 +471,8 @@ export default function InvoiceForm({
                       <option value="">— choose service —</option>
                       {services.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.name} · {currency(Number(s.price ?? 0), currencyCode)}
+                          {s.name} ·{" "}
+                          {currency(Number(s.price ?? 0), currencyCode)}
                         </option>
                       ))}
                     </select>
@@ -394,14 +583,9 @@ export default function InvoiceForm({
               alignItems: "flex-end",
             }}
           >
-            <div
-              className="mono label"
-              style={{ color: "var(--muted)" }}
-            >
+            <div className="mono label" style={{ color: "var(--muted)" }}>
               Subtotal {currency(subtotal, currencyCode)}
-              {discPct > 0
-                ? ` · −${currency(discAmt, currencyCode)}`
-                : ""}
+              {discPct > 0 ? ` · −${currency(discAmt, currencyCode)}` : ""}
             </div>
             <div
               className="mono"
