@@ -4,14 +4,16 @@
 // Limitation of Liability, and Client Responsibilities. Have attorney review
 // before production use.
 //
-// Merge fields (preserved from prior version):
-//   {client_company}, {governing_law}, {legal_entity}, {proposal_ref}
+// Merge fields used in the body:
+//   {client_company}, {governing_law}, {legal_entity}
 //
-// {phase2_commitment} and {phase2_commitment_next} are no longer used in the
-// body — clause 4 hardcodes "three (3)" and "month four (4)" per the updated
-// wording. The renderTerms helper still substitutes them, so legacy stored
-// terms (rows whose `terms` column was set before this update) keep
-// rendering correctly.
+// {phase2_commitment}, {phase2_commitment_next}, and {proposal_ref} are no
+// longer used in the new body — clause 4 hardcodes "three (3)" and "month
+// four (4)" per the updated wording, and clause 1 now refers to "the
+// attached proposal" generically (proposal numbers/dates aren't reliably
+// populated in our system). The renderTerms helper still substitutes all of
+// them so legacy stored terms (rows whose `terms` column was set before
+// these updates) keep rendering correctly.
 //
 // Paragraphs that begin with `**Label.**` render as inline-bold sub-labels
 // in the PDF (see lib/pdf/agreement-pdf.ts) and as <strong> in the on-screen
@@ -21,7 +23,7 @@
 
 export const DEFAULT_LEGAL_TERMS = `1. SCOPE OF SERVICES
 
-{legal_entity} ("Attomik") agrees to provide the services described in {proposal_ref}, which is attached to and incorporated by reference into this Agreement (the "Proposal"), to {client_company} ("Client"). The Proposal sets out the scope, deliverables, and commercial terms agreed between the parties.
+{legal_entity} ("Attomik") agrees to provide the services described in the attached proposal, which is attached to and incorporated by reference into this Agreement (the "Proposal"), to {client_company} ("Client"). The Proposal sets out the scope, deliverables, and commercial terms agreed between the parties.
 
 The Proposal defines what is included in the engagement. Work outside the defined scope — including new deliverables, expanded platforms, additional brands, or material changes to direction after work has commenced — will be quoted separately as a change order and require written approval before commencement. Reasonable revisions and iteration on in-scope deliverables are included; repeated reversals of previously approved direction may be treated as out of scope.
 
