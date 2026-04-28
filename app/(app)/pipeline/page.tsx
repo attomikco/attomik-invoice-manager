@@ -59,7 +59,9 @@ function emptyDraft(): OpportunityDraft {
     stage: "idea",
     source: "",
     estimated_value: "0",
-    estimated_phase: "",
+    estimated_phase1_value: "8000",
+    estimated_phase2_monthly: "5000",
+    estimated_phase: "phase1_phase2",
     next_action: "",
     next_action_date: "",
     notes: "",
@@ -76,6 +78,8 @@ function toDraft(o: Opportunity): OpportunityDraft {
     stage: o.stage,
     source: o.source ?? "",
     estimated_value: String(o.estimated_value ?? 0),
+    estimated_phase1_value: String(o.estimated_phase1_value ?? 8000),
+    estimated_phase2_monthly: String(o.estimated_phase2_monthly ?? 5000),
     estimated_phase: o.estimated_phase ?? "",
     next_action: o.next_action ?? "",
     next_action_date: o.next_action_date ?? "",
@@ -85,13 +89,26 @@ function toDraft(o: Opportunity): OpportunityDraft {
 }
 
 function buildPayload(d: OpportunityDraft, prev: OpportunityStage | null) {
+  const phase1 = Number(d.estimated_phase1_value) || 0;
+  const phase2 = Number(d.estimated_phase2_monthly) || 0;
+  const phase1Counts =
+    d.estimated_phase === "phase1_only" || d.estimated_phase === "phase1_phase2";
+  const phase2Counts =
+    d.estimated_phase === "phase2_only" || d.estimated_phase === "phase1_phase2";
+  // Keep legacy estimated_value populated as a phase-aware rollup so any
+  // remaining read sites stay coherent with the new split fields.
+  const legacyEstimate =
+    (phase1Counts ? phase1 : 0) + (phase2Counts ? phase2 * 6 : 0);
+
   const base: Record<string, unknown> = {
     company_name: d.company_name || null,
     contact_name: d.contact_name || null,
     contact_email: d.contact_email || null,
     stage: d.stage,
     source: d.source || null,
-    estimated_value: Number(d.estimated_value) || 0,
+    estimated_value: legacyEstimate,
+    estimated_phase1_value: phase1,
+    estimated_phase2_monthly: phase2,
     estimated_phase: d.estimated_phase || null,
     next_action: d.next_action || null,
     next_action_date: d.next_action_date || null,

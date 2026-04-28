@@ -144,6 +144,8 @@ export type Opportunity = {
   stage: OpportunityStage;
   source: string | null;
   estimated_value: number | null;
+  estimated_phase1_value: number | null;
+  estimated_phase2_monthly: number | null;
   estimated_phase: string | null;
   next_action: string | null;
   next_action_date: string | null;
@@ -169,6 +171,7 @@ export type Invoice = {
   date: string | null;
   due: string | null;
   status: string | null;
+  client_id: string | null;
   client_name: string | null;
   client_email: string | null;
   client_company: string | null;
@@ -220,6 +223,7 @@ export type Proposal = {
   p2_total: number | null;
   p2_second_store: boolean | null;
   opportunity_id: string | null;
+  client_id: string | null;
   created_at: string | null;
 };
 
@@ -272,6 +276,7 @@ export type Agreement = {
   proposal_number: string | null;
   proposal_date: string | null;
   opportunity_id: string | null;
+  client_id: string | null;
   client_name: string | null;
   client_email: string | null;
   client_company: string | null;
@@ -294,6 +299,25 @@ export type Agreement = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Shared shape for the "+ New client" inline-create flow used by the
+// invoice / agreement / proposal forms. Lives here so all three pages can
+// share one copy.
+export type NewClientDraft = {
+  name: string;
+  company: string;
+  email: string;
+  address: string;
+  payment_terms: string;
+};
+
+export const EMPTY_NEW_CLIENT: NewClientDraft = {
+  name: "",
+  company: "",
+  email: "",
+  address: "",
+  payment_terms: "Net 15",
 };
 
 export type LineItemDraft = {

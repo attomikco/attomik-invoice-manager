@@ -1,7 +1,6 @@
 "use client";
 
 import { Modal } from "@/components/modal";
-import { currency } from "@/lib/format";
 import {
   OPPORTUNITY_PHASES,
   OPPORTUNITY_SOURCES,
@@ -17,6 +16,8 @@ export type OpportunityDraft = {
   stage: OpportunityStage;
   source: string;
   estimated_value: string;
+  estimated_phase1_value: string;
+  estimated_phase2_monthly: string;
   estimated_phase: string;
   next_action: string;
   next_action_date: string;
@@ -73,7 +74,18 @@ export default function OpportunityForm({
   if (!draft) return null;
 
   const isLost = draft.stage === "lost";
-  const estimated = Number(draft.estimated_value) || 0;
+  const phase1Counts =
+    draft.estimated_phase === "phase1_only" ||
+    draft.estimated_phase === "phase1_phase2";
+  const phase2Counts =
+    draft.estimated_phase === "phase2_only" ||
+    draft.estimated_phase === "phase1_phase2";
+  const phase1Helper = phase1Counts
+    ? "One-time fee. Counts toward Pipeline one-time."
+    : "Won't count toward pipeline metrics for the selected scope.";
+  const phase2Helper = phase2Counts
+    ? "Recurring monthly retainer. Counts toward Pipeline MRR."
+    : "Won't count toward pipeline metrics for the selected scope.";
 
   return (
     <Modal
@@ -212,25 +224,54 @@ export default function OpportunityForm({
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label">
-            Estimated value (Phase 1 + first 3 months Phase 2)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={draft.estimated_value}
-            onChange={(e) =>
-              onChange({ ...draft, estimated_value: e.target.value })
-            }
-            placeholder="0"
-          />
-          {estimated > 0 && (
-            <div className="caption" style={{ marginTop: "var(--sp-1)" }}>
-              {currency(estimated, currencyCode)}
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label">Phase 1 value (one-time)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.estimated_phase1_value}
+              onChange={(e) =>
+                onChange({ ...draft, estimated_phase1_value: e.target.value })
+              }
+              placeholder="8000"
+            />
+            <div
+              className="caption"
+              style={{
+                marginTop: "var(--sp-1)",
+                color: phase1Counts ? undefined : "var(--text-muted)",
+              }}
+            >
+              {phase1Helper}
             </div>
-          )}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Phase 2 monthly (recurring)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.estimated_phase2_monthly}
+              onChange={(e) =>
+                onChange({
+                  ...draft,
+                  estimated_phase2_monthly: e.target.value,
+                })
+              }
+              placeholder="5000"
+            />
+            <div
+              className="caption"
+              style={{
+                marginTop: "var(--sp-1)",
+                color: phase2Counts ? undefined : "var(--text-muted)",
+              }}
+            >
+              {phase2Helper}
+            </div>
+          </div>
         </div>
 
         <div className="section-header" style={{ margin: 0 }}>
