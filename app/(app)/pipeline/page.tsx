@@ -141,6 +141,40 @@ function startOfQuarter(d: Date): Date {
   return new Date(d.getFullYear(), q * 3, 1);
 }
 
+// Phase-aware contribution helpers: an opportunity only contributes to a
+// metric the selected scope actually delivers. A phase1_only deal has no
+// MRR contribution; a phase2_only deal has no one-time contribution.
+function opportunityMonthlyContribution(opp: Opportunity): number {
+  const phase = opp.estimated_phase;
+  if (phase === "phase1_phase2" || phase === "phase2_only") {
+    return Number(opp.estimated_phase2_monthly) || 0;
+  }
+  return 0;
+}
+
+function opportunityOneTimeContribution(opp: Opportunity): number {
+  const phase = opp.estimated_phase;
+  if (phase === "phase1_only" || phase === "phase1_phase2") {
+    return Number(opp.estimated_phase1_value) || 0;
+  }
+  return 0;
+}
+
+function opportunityValueDisplay(
+  opp: Opportunity,
+  currencyCode: string,
+): string {
+  const phase = opp.estimated_phase;
+  const p1 = Number(opp.estimated_phase1_value) || 0;
+  const p2 = Number(opp.estimated_phase2_monthly) || 0;
+  if (phase === "phase1_only") return currency(p1, currencyCode);
+  if (phase === "phase2_only") return `${currency(p2, currencyCode)}/mo`;
+  if (phase === "phase1_phase2") {
+    return `${currency(p1, currencyCode)} + ${currency(p2, currencyCode)}/mo`;
+  }
+  return "—";
+}
+
 export default function PipelinePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -233,14 +267,28 @@ export default function PipelinePage() {
     const overdue = open.filter(
       (o) => o.next_action_date && o.next_action_date < today,
     ).length;
-    const pipelineValue = open.reduce(
-      (sum, o) => sum + (Number(o.estimated_value) || 0),
+    const pipelineMrr = open.reduce(
+      (sum, o) => sum + opportunityMonthlyContribution(o),
       0,
     );
-    const wonThisQuarter = opportunities.filter(
+    const pipelineOneTime = open.reduce(
+      (sum, o) => sum + opportunityOneTimeContribution(o),
+      0,
+    );
+    const wonThisQuarterOpps = opportunities.filter(
       (o) => o.stage === "won" && o.won_at && o.won_at >= quarterStart,
-    ).length;
-    return { open: open.length, overdue, pipelineValue, wonThisQuarter };
+    );
+    const wonThisQuarterMrr = wonThisQuarterOpps.reduce(
+      (sum, o) => sum + opportunityMonthlyContribution(o),
+      0,
+    );
+    return {
+      open: open.length,
+      overdue,
+      pipelineMrr,
+      pipelineOneTime,
+      wonThisQuarterMrr,
+    };
   }, [opportunities, today, quarterStart]);
 
   function startNew() {
@@ -439,7 +487,7 @@ export default function PipelinePage() {
         </button>
       </header>
 
-      <section className="grid-4">
+      <section className="grid-5">
         <Kpi
           label="Open"
           value={String(stats.open)}
@@ -453,13 +501,18 @@ export default function PipelinePage() {
           tone={stats.overdue > 0 ? "negative" : undefined}
         />
         <Kpi
-          label="Estimated pipeline"
-          value={currencyCompact(stats.pipelineValue, currencyCode)}
-          hint="sum of open opportunities"
+          label="Pipeline MRR"
+          value={`${currencyCompact(stats.pipelineMrr, currencyCode)}/mo`}
+          hint="if all open opps close"
         />
         <Kpi
-          label="Won this quarter"
-          value={String(stats.wonThisQuarter)}
+          label="Pipeline one-time"
+          value={currencyCompact(stats.pipelineOneTime, currencyCode)}
+          hint="Phase 1 fees from open opps"
+        />
+        <Kpi
+          label="Won this quarter (MRR)"
+          value={`${currencyCompact(stats.wonThisQuarterMrr, currencyCode)}/mo`}
           hint={`since ${dateCompact(quarterStart.slice(0, 10))}`}
         />
       </section>
@@ -561,12 +614,7 @@ export default function PipelinePage() {
                         )}
                       </td>
                       <td className="td-right td-mono">
-                        {Number(o.estimated_value) > 0
-                          ? currency(
-                              Number(o.estimated_value) || 0,
-                              currencyCode,
-                            )
-                          : "—"}
+                        {opportunityValueDisplay(o, currencyCode)}
                       </td>
                       <td className="td-muted">{o.source ?? "—"}</td>
                       <td
